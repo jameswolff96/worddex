@@ -111,10 +111,10 @@ export default async function PlayPage({ params }: Props) {
 
   const { data: rawWordBank } = await supabase
     .from("word_bank")
-    .select("term, category")
+    .select("term, category, sprite_ref")
     .eq("is_active", true)
     .in("category", lobby.rules.categories);
-  const wordBank = (rawWordBank ?? []) as { term: string; category: string }[];
+  const wordBank = (rawWordBank ?? []) as { term: string; category: string; sprite_ref: string | null }[];
 
   return (
     <GameClient

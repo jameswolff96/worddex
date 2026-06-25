@@ -92,7 +92,7 @@ interface Props {
   initialChat: ChatMessage[];
   currentUserId: string | null;
   myPlayerId: string | null;
-  wordBank: { term: string; category: string }[];
+  wordBank: { term: string; category: string; sprite_ref: string | null }[];
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -373,6 +373,11 @@ export function GameClient({
     const q = guessInput.toLowerCase();
     return wordBank.filter((t) => t.term.toLowerCase().includes(q)).slice(0, 8);
   }, [guessInput, wordBank]);
+
+  const termSpriteMap = useMemo(
+    () => new Map(wordBank.map((t) => [t.term, t.sprite_ref])),
+    [wordBank]
+  );
 
   // ── Render ──
 
@@ -731,9 +736,13 @@ export function GameClient({
             gap: 4,
           }}
         >
-          {chat.map((msg) => (
-            <ChatLine key={msg.id} msg={msg} sender={senderName(msg)} />
-          ))}
+          {chat.map((msg) => {
+            const guessTerm = (msg.metadata as { term?: string }).term;
+            const spriteUrl = guessTerm
+              ? pokemonSpriteUrl(termSpriteMap.get(guessTerm) ?? null)
+              : null;
+            return <ChatLine key={msg.id} msg={msg} sender={senderName(msg)} spriteUrl={spriteUrl} />;
+          })}
           <div ref={chatEndRef} />
         </div>
 
@@ -837,7 +846,19 @@ export function GameClient({
                         fontSize: "0.85rem",
                       }}
                     >
-                      <span style={{ fontWeight: 700 }}>{t.term}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {pokemonSpriteUrl(t.sprite_ref) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={pokemonSpriteUrl(t.sprite_ref)!}
+                            alt=""
+                            width={24}
+                            height={24}
+                            style={{ imageRendering: "pixelated", flexShrink: 0 }}
+                          />
+                        )}
+                        <span style={{ fontWeight: 700 }}>{t.term}</span>
+                      </span>
                       <span style={{ fontSize: "0.72rem", color: "var(--pc-muted)" }}>{t.category}</span>
                     </button>
                   ))}
@@ -925,7 +946,7 @@ export function GameClient({
 
 // ── Chat line renderer ─────────────────────────────────────
 
-function ChatLine({ msg, sender }: { msg: ChatMessage; sender: string | null }) {
+function ChatLine({ msg, sender, spriteUrl }: { msg: ChatMessage; sender: string | null; spriteUrl?: string | null }) {
 
   const meta = msg.metadata as {
     correct?: boolean;
@@ -953,16 +974,15 @@ function ChatLine({ msg, sender }: { msg: ChatMessage; sender: string | null }) 
 
   // guess
   return (
-    <div style={{ fontSize: "0.85rem" }}>
-      <span style={{ fontWeight: 700 }}>{sender}:</span>{" "}
-      <span
-        style={{
-          color: meta.correct ? "var(--pc-green)" : "var(--pc-red-dark)",
-          fontWeight: 700,
-        }}
-      >
+    <div style={{ fontSize: "0.85rem", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+      <span style={{ fontWeight: 700 }}>{sender}:</span>
+      <span style={{ color: meta.correct ? "var(--pc-green)" : "var(--pc-red-dark)", fontWeight: 700 }}>
         {meta.correct ? "✓" : "✗"}
-      </span>{" "}
+      </span>
+      {spriteUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={spriteUrl} alt="" width={20} height={20} style={{ imageRendering: "pixelated" }} />
+      )}
       {msg.content}
     </div>
   );
