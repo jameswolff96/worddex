@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Brandbar } from "@/components/Brandbar";
 import { JoinByCodeClient } from "@/components/JoinByCodeClient";
+import { OpenLobbiesClient } from "@/components/OpenLobbiesClient";
 import type { LobbyRow, LobbyRules } from "@/lib/types/database";
 import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
@@ -174,23 +175,7 @@ export default async function HomePage() {
       {/* ── Public lobbies ── */}
       <div className="pc-card">
         <h2 className="pc-h2">Open lobbies</h2>
-        {openLobbies && openLobbies.length > 0 ? (
-          <ul className="space-y-2">
-            {(openLobbies as LobbyRow[]).map((lobby) => (
-              <PublicLobbyRow key={lobby.id} lobby={lobby} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--pc-muted)" }}>
-            No open lobbies right now.{" "}
-            <Link
-              href="/lobby/create"
-              style={{ color: "var(--pc-blue)", fontWeight: 700 }}
-            >
-              Start one!
-            </Link>
-          </p>
-        )}
+        <OpenLobbiesClient initialLobbies={(openLobbies ?? []) as LobbyRow[]} />
       </div>
 
       <footer
@@ -203,47 +188,3 @@ export default async function HomePage() {
   );
 }
 
-function PublicLobbyRow({ lobby }: { lobby: LobbyRow }) {
-  const rules = lobby.rules as LobbyRules;
-  const modeLabel: Record<string, string> = {
-    teams: "Teams",
-    solo: "Solo / FFA",
-    classroom_streamer: "Classroom",
-  };
-
-  return (
-    <li
-      style={{
-        border: "2px solid var(--pc-ink)",
-        borderRadius: 10,
-        padding: "10px 14px",
-        background: "var(--pc-input-bg)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 12,
-      }}
-    >
-      <div>
-        <span
-          className="font-bold"
-          style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}
-        >
-          {lobby.code}
-        </span>
-        <span className="text-xs ml-2" style={{ color: "var(--pc-muted)" }}>
-          {modeLabel[lobby.mode] ?? lobby.mode}
-          {rules.number_of_rounds ? ` · ${rules.number_of_rounds}R` : ""}
-          {rules.terms_per_turn ? ` · ${rules.terms_per_turn} terms` : ""}
-        </span>
-      </div>
-      <Link
-        href={`/lobby/${lobby.code}`}
-        className="pc-btn pc-btn-green"
-        style={{ fontSize: "0.85rem", padding: "6px 14px" }}
-      >
-        Join
-      </Link>
-    </li>
-  );
-}
