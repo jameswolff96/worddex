@@ -11,7 +11,6 @@ import {
   forcedSkip,
   endTurn,
   advanceTurn,
-  nextTerm,
 } from "@/lib/game/engine";
 import { endGame, abandonGame } from "@/app/lobby/actions";
 import type {
@@ -232,12 +231,7 @@ export function GameClient({
       }, 5000);
 
       const t0 = setTimeout(async () => {
-        const termsCompleted = gs.terms_completed_this_turn ?? 0;
-        if (termsCompleted < rules.terms_per_turn) {
-          await nextTerm(lobby.id);
-        } else {
-          await endTurn(lobby.id);
-        }
+        await endTurn(lobby.id);
       }, 10000);
 
       countdownTimers.current = [t5, t0];

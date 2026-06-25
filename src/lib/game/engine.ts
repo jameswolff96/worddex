@@ -464,18 +464,20 @@ export async function submitGuess(
     } else {
       const completedThisTurn = ((gameState.terms_completed_this_turn as number) ?? 0) + 1;
       const isFinal = completedThisTurn >= rules.terms_per_turn;
-      await supabase.from("chat_messages").insert({
-        lobby_id: lobbyId,
-        kind: "system",
-        content: isFinal
-          ? `✓ Correct! Turn complete — advancing in 10 seconds.`
-          : `✓ Correct! (${completedThisTurn}/${rules.terms_per_turn}) Next term in 10 seconds.`,
-        metadata: { countdown: true },
-      });
-      await supabase.from("game_state").update({
-        phase: "correct_guess",
-        terms_completed_this_turn: completedThisTurn,
-      }).eq("lobby_id", lobbyId);
+      if (isFinal) {
+        await supabase.from("chat_messages").insert({
+          lobby_id: lobbyId,
+          kind: "system",
+          content: `✓ Correct! Turn complete — advancing in 10 seconds.`,
+          metadata: { countdown: true },
+        });
+        await supabase.from("game_state").update({
+          phase: "correct_guess",
+          terms_completed_this_turn: completedThisTurn,
+        }).eq("lobby_id", lobbyId);
+      } else {
+        await advanceToNextTerm(lobbyId, gameState, true);
+      }
     }
   }
 
@@ -663,56 +665,6 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCo
       ? `✓ Term ${newCompleted}/${rules.terms_per_turn} complete! Next term…`
       : "Term skipped. Next term!",
   });
-}
-
-// ── Advance to the next term for the same clue master ─────
-// Called by the client after the 10-second countdown when terms remain.
-
-export async function nextTerm(lobbyId: string): Promise<GameError | void> {
-  const supabase = await createClient();
-
-  const { data: gs } = await supabase
-    .from("game_state")
-    .select("*")
-    .eq("lobby_id", lobbyId)
-    .single();
-  if (!gs) return { error: "Game state not found" };
-  const gameState = gs as unknown as GameStateRow;
-
-  const { data: lobby } = await supabase
-    .from("lobbies")
-    .select("rules")
-    .eq("id", lobbyId)
-    .single();
-  if (!lobby) return { error: "Lobby not found" };
-  const rules = lobby.rules as unknown as LobbyRules;
-
-  const nextTermData = await pickTerm(
-    lobbyId,
-    gameState.used_term_ids as number[],
-    rules.categories
-  );
-  if (!nextTermData) {
-    await endTurn(lobbyId, gameState);
-    return;
-  }
-
-  const updatedTerm: CurrentTerm = {
-    term: nextTermData.term,
-    category: nextTermData.category,
-    word_bank_id: nextTermData.id,
-    sprite_ref: nextTermData.sprite_ref,
-    current_clue_message_id: null,
-  };
-
-  await supabase
-    .from("game_state")
-    .update({
-      current_term: updatedTerm as unknown as import("@/lib/types/database").Json,
-      used_term_ids: [...(gameState.used_term_ids as number[]), nextTermData.id],
-      phase: "clueing",
-    })
-    .eq("lobby_id", lobbyId);
 }
 
 // ── End turn ──────────────────────────────────────────────
