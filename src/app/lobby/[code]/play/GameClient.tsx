@@ -93,12 +93,13 @@ interface Props {
 
 // ── Helpers ────────────────────────────────────────────────
 
-function playerDisplayName(p: {
-  users?: { display_name: string; discriminator: number } | null;
-  guest_name?: string | null;
-}): string {
-  if (p.users) return `${p.users.display_name}#${p.users.discriminator}`;
-  return p.guest_name ?? "Unknown";
+function playerDisplayName(
+  p: { users?: { display_name: string; discriminator: number } | null; guest_name?: string | null },
+  collidingNames: Set<string>
+): string {
+  if (!p.users) return p.guest_name ?? "Unknown";
+  const { display_name, discriminator } = p.users;
+  return collidingNames.has(display_name) ? `${display_name}#${discriminator}` : display_name;
 }
 
 // ── Main Component ─────────────────────────────────────────
@@ -297,6 +298,18 @@ export function GameClient({
     });
   }
 
+  // Compute which display names appear more than once so we only show
+  // the discriminator when it's actually needed to tell players apart.
+  const nameCount = new Map<string, number>();
+  for (const p of players) {
+    if (p.users?.display_name) {
+      nameCount.set(p.users.display_name, (nameCount.get(p.users.display_name) ?? 0) + 1);
+    }
+  }
+  const collidingNames = new Set(
+    [...nameCount.entries()].filter(([, n]) => n > 1).map(([name]) => name)
+  );
+
   // ── Scores (use live state so they update without refresh) ──
   const scores =
     mode === "solo"
@@ -304,7 +317,7 @@ export function GameClient({
           .sort((a, b) => a.join_order - b.join_order)
           .map((p) => ({
             id: p.id,
-            name: playerDisplayName(p),
+            name: playerDisplayName(p, collidingNames),
             score: p.score,
             active: gs?.current_turn_player_id === p.id,
           }))
@@ -322,7 +335,7 @@ export function GameClient({
     if (!msg.sender_player_id) return "System";
     const p = players.find((pl) => pl.id === msg.sender_player_id);
     if (!p) return "Unknown";
-    return playerDisplayName(p);
+    return playerDisplayName(p, collidingNames);
   }
 
   // ── Guess options: all word bank terms visible to guessers ──
