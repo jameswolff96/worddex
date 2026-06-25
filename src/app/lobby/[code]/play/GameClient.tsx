@@ -97,16 +97,8 @@ function playerDisplayName(p: {
   users?: { display_name: string; discriminator: number } | null;
   guest_name?: string | null;
 }): string {
-  return p.users?.display_name ?? p.guest_name ?? "Unknown";
-}
-
-function chatSenderName(msg: ChatMessage): string {
-  if (!msg.lobby_players) return "System";
-  return (
-    msg.lobby_players.users?.display_name ??
-    msg.lobby_players.guest_name ??
-    "Unknown"
-  );
+  if (p.users) return `${p.users.display_name}#${p.users.discriminator}`;
+  return p.guest_name ?? "Unknown";
 }
 
 // ── Main Component ─────────────────────────────────────────
@@ -121,6 +113,8 @@ export function GameClient({
   const supabase = createClient();
   const [gs, setGs] = useState<GameState | null>(initialGameState);
   const [chat, setChat] = useState<ChatMessage[]>(initialChat);
+  const [players, setPlayers] = useState(lobby.lobby_players);
+  const [teams, setTeams] = useState(lobby.lobby_teams);
   const [clueInput, setClueInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -128,7 +122,7 @@ export function GameClient({
 
   const rules = lobby.rules;
   const mode = lobby.mode;
-  const myPlayer = lobby.lobby_players.find((p) => p.id === myPlayerId) ?? null;
+  const myPlayer = players.find((p) => p.id === myPlayerId) ?? null;
 
   // Am I the current clue master?
   const isClueMaster =
@@ -170,6 +164,22 @@ export function GameClient({
         },
         (payload) => {
           setChat((prev) => [...prev, payload.new as ChatMessage]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "lobby_players", filter: `lobby_id=eq.${lobby.id}` },
+        (payload) => {
+          const updated = payload.new as Player;
+          setPlayers((prev) => prev.map((p) => p.id === updated.id ? { ...p, score: updated.score } : p));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "lobby_teams", filter: `lobby_id=eq.${lobby.id}` },
+        (payload) => {
+          const updated = payload.new as Team;
+          setTeams((prev) => prev.map((t) => t.id === updated.id ? { ...t, score: updated.score } : t));
         }
       )
       .subscribe();
@@ -254,10 +264,10 @@ export function GameClient({
     });
   }
 
-  // ── Scores ──
+  // ── Scores (use live state so they update without refresh) ──
   const scores =
     mode === "solo"
-      ? [...lobby.lobby_players]
+      ? [...players]
           .sort((a, b) => a.join_order - b.join_order)
           .map((p) => ({
             id: p.id,
@@ -265,7 +275,7 @@ export function GameClient({
             score: p.score,
             active: gs?.current_turn_player_id === p.id,
           }))
-      : [...lobby.lobby_teams]
+      : [...teams]
           .sort((a, b) => a.turn_order - b.turn_order)
           .map((t) => ({
             id: t.id,
@@ -273,6 +283,14 @@ export function GameClient({
             score: t.score,
             active: gs?.current_team_id === t.id,
           }));
+
+  // Resolve chat sender from live players state — Realtime payloads don't include joins
+  function senderName(msg: ChatMessage): string {
+    if (!msg.sender_player_id) return "System";
+    const p = players.find((pl) => pl.id === msg.sender_player_id);
+    if (!p) return "Unknown";
+    return playerDisplayName(p);
+  }
 
   // ── Guess options: all word bank terms visible to guessers ──
   // For now use a simple text input; a dropdown from server would need API call
@@ -564,7 +582,7 @@ export function GameClient({
           }}
         >
           {chat.map((msg) => (
-            <ChatLine key={msg.id} msg={msg} />
+            <ChatLine key={msg.id} msg={msg} sender={senderName(msg)} />
           ))}
           <div ref={chatEndRef} />
         </div>
@@ -661,10 +679,7 @@ export function GameClient({
 
 // ── Chat line renderer ─────────────────────────────────────
 
-function ChatLine({ msg }: { msg: ChatMessage }) {
-  const sender = msg.lobby_players
-    ? (msg.lobby_players.users?.display_name ?? msg.lobby_players.guest_name ?? "?")
-    : null;
+function ChatLine({ msg, sender }: { msg: ChatMessage; sender: string | null }) {
 
   const meta = msg.metadata as {
     correct?: boolean;
