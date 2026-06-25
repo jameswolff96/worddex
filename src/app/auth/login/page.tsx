@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Brandbar } from "@/components/Brandbar";
 import { OAuthButtons } from "@/components/OAuthButtons";
 
@@ -14,13 +13,6 @@ export default function LoginPage() {
         </p>
 
         <OAuthButtons />
-
-        <p className="mt-4 text-sm" style={{ color: "var(--pc-muted)" }}>
-          No account yet?{" "}
-          <Link href="/auth/signup" className="font-bold" style={{ color: "var(--pc-blue)" }}>
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

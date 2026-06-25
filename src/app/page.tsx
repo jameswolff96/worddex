@@ -94,13 +94,6 @@ export default async function HomePage() {
             >
               Sign in
             </Link>
-            <Link
-              href="/auth/signup"
-              className="pc-btn pc-btn-blue"
-              style={{ fontSize: "0.85rem", padding: "8px 14px" }}
-            >
-              Create account
-            </Link>
             <Link href="/lobby/create" className="pc-btn pc-btn-red">
               + Play as guest
             </Link>
