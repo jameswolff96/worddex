@@ -201,14 +201,15 @@ function RuleSettings({ isTeams }: { isTeams: boolean }) {
           </div>
         )}
 
-        <div>
-          <label className="pc-label">Clue Master rotation</label>
-          <select name="clue_master_rotation" defaultValue="round" className="pc-input">
-            <option value="static">Static (same person)</option>
-            <option value="round">Round rotation</option>
-            <option value="term">Term rotation</option>
-          </select>
-        </div>
+        {isTeams && (
+          <div>
+            <label className="pc-label">Clue Master rotation</label>
+            <select name="clue_master_rotation" defaultValue="round" className="pc-input">
+              <option value="round">Per round</option>
+              <option value="term">Per term</option>
+            </select>
+          </div>
+        )}
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
