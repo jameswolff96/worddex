@@ -18,6 +18,7 @@ import type {
   GamePhase,
 } from "@/lib/types/database";
 import { Brandbar } from "@/components/Brandbar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // ── Re-export the types so play/page.tsx can share them ──
 
@@ -443,8 +444,11 @@ export function GameClient({
             </span>
           </div>
         ))}
-        <div style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--pc-muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
-          Round {gs.current_round} / {rules.number_of_rounds}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ fontSize: "0.75rem", color: "var(--pc-muted)", whiteSpace: "nowrap" }}>
+            Round {gs.current_round} / {rules.number_of_rounds}
+          </span>
+          <ThemeToggle />
         </div>
       </div>
 

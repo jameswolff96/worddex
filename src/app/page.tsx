@@ -28,6 +28,19 @@ export default async function HomePage() {
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const { data: myPlayerRows } = user
+    ? await supabase
+        .from("lobby_players")
+        .select("lobbies(id, code, mode, status, rules, created_at)")
+        .eq("user_id", user.id)
+    : { data: null };
+
+  const activeGames = (myPlayerRows ?? [])
+    .map((r) => r.lobbies as unknown as LobbyRow | null)
+    .filter((l): l is LobbyRow => l !== null && ["waiting", "playing"].includes(l.status))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
+
   return (
     <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
       <Brandbar />
@@ -93,6 +106,64 @@ export default async function HomePage() {
           </>
         )}
       </div>
+
+      {/* ── Active games ── */}
+      {activeGames.length > 0 && (
+        <div className="pc-card">
+          <h2 className="pc-h2">Your active games</h2>
+          <ul className="space-y-2">
+            {activeGames.map((lobby) => {
+              const rules = lobby.rules as LobbyRules;
+              const modeLabel: Record<string, string> = {
+                teams: "Teams",
+                solo: "Solo / FFA",
+                classroom_streamer: "Classroom",
+              };
+              const href = lobby.status === "playing"
+                ? `/lobby/${lobby.code}/play`
+                : `/lobby/${lobby.code}`;
+              return (
+                <li
+                  key={lobby.id}
+                  style={{
+                    border: "2px solid var(--pc-ink)",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    background: "var(--pc-input-bg)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <span className="font-bold" style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
+                      {lobby.code}
+                    </span>
+                    <span className="text-xs ml-2" style={{ color: "var(--pc-muted)" }}>
+                      {modeLabel[lobby.mode] ?? lobby.mode}
+                      {rules.number_of_rounds ? ` · ${rules.number_of_rounds}R` : ""}
+                    </span>
+                    <span
+                      className="ml-2 text-xs font-bold"
+                      style={{ color: lobby.status === "playing" ? "var(--pc-green)" : "var(--pc-yellow)" }}
+                    >
+                      {lobby.status === "playing" ? "● In progress" : "● Waiting"}
+                    </span>
+                  </div>
+                  <Link
+                    href={href}
+                    className="pc-btn pc-btn-blue"
+                    style={{ fontSize: "0.85rem", padding: "6px 14px" }}
+                  >
+                    Rejoin
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* ── Join by code ── */}
       <div className="pc-card">
