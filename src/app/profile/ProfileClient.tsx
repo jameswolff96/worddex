@@ -5,13 +5,12 @@ import { updateDisplayName, deleteAccount, type ProfileError } from "./actions";
 
 interface Props {
   displayName: string;
-  discriminator: number;
   email: string | null;
   spriteUrl: string | null;
   createdAt: string;
 }
 
-export function ProfileClient({ displayName, discriminator, email, spriteUrl, createdAt }: Props) {
+export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Props) {
   const [nameError, nameAction, namePending] = useActionState<ProfileError | undefined, FormData>(
     updateDisplayName,
     undefined
@@ -49,7 +48,6 @@ export function ProfileClient({ displayName, discriminator, email, spriteUrl, cr
           <div>
             <div className="font-bold text-lg" style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
               {displayName}
-              <span className="text-sm font-normal" style={{ color: "var(--pc-muted)" }}>#{discriminator}</span>
             </div>
             {email && <div className="text-sm" style={{ color: "var(--pc-muted)" }}>{email}</div>}
             <div className="text-xs mt-1" style={{ color: "var(--pc-muted)" }}>Joined {joined}</div>
@@ -61,7 +59,7 @@ export function ProfileClient({ displayName, discriminator, email, spriteUrl, cr
       <div className="pc-card">
         <h2 className="pc-h2">Change display name</h2>
         <p className="text-sm mb-3" style={{ color: "var(--pc-muted)" }}>
-          Leave blank to get a new random Pokémon-flavored name. Your discriminator will update automatically.
+          Leave blank to get a new random Pokémon-flavored name.
         </p>
         <form action={nameAction} className="space-y-3">
           <input

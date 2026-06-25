@@ -146,6 +146,16 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
     if (result?.error) setError(result.error);
   }
 
+  const nameCount = new Map<string, number>();
+  for (const p of players) {
+    if (p.users?.display_name) {
+      nameCount.set(p.users.display_name, (nameCount.get(p.users.display_name) ?? 0) + 1);
+    }
+  }
+  const collidingNames = new Set(
+    [...nameCount.entries()].filter(([, n]) => n > 1).map(([name]) => name)
+  );
+
   const displayName = (p: Player) =>
     p.users?.display_name ?? p.guest_name ?? "Unknown";
 
@@ -172,7 +182,7 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                 >
                   <span>
                     {displayName(p)}
-                    {p.users?.discriminator != null && (
+                    {p.users?.display_name && collidingNames.has(p.users.display_name) && p.users.discriminator != null && (
                       <span className="font-normal ml-1 text-xs" style={{ color: "var(--pc-muted)" }}>
                         #{p.users.discriminator}
                       </span>

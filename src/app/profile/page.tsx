@@ -12,7 +12,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("display_name, discriminator, email, avatar, created_at")
+    .select("display_name, email, avatar, created_at")
     .eq("id", user.id)
     .single();
 
@@ -23,7 +23,6 @@ export default async function ProfilePage() {
       <Brandbar />
       <ProfileClient
         displayName={profile.display_name}
-        discriminator={profile.discriminator}
         email={profile.email}
         spriteUrl={pokemonSpriteUrl(profile.avatar)}
         createdAt={profile.created_at}
