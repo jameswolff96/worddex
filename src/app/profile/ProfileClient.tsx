@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateDisplayName, deleteAccount, exportMyData, type ProfileError } from "./actions";
 
 interface Props {
@@ -19,6 +20,17 @@ export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Prop
     deleteAccount,
     undefined
   );
+
+  const router = useRouter();
+  const prevPending = useRef(false);
+
+  useEffect(() => {
+    if (prevPending.current && !namePending && !nameError) {
+      router.refresh();
+      if (inputRef.current) inputRef.current.value = "";
+    }
+    prevPending.current = namePending;
+  }, [namePending, nameError, router]);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
