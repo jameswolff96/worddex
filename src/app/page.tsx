@@ -30,6 +30,13 @@ export default async function HomePage() {
             <Link href="/lobby/create" className="pc-btn pc-btn-red">
               + New lobby
             </Link>
+            <Link
+              href="/profile"
+              className="pc-btn pc-btn-ghost"
+              style={{ fontSize: "0.85rem", padding: "8px 14px" }}
+            >
+              Profile
+            </Link>
             <form action="/api/auth/signout" method="post">
               <button
                 type="submit"

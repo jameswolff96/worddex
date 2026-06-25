@@ -28,6 +28,7 @@ export type Database = {
         };
         Update: {
           display_name?: string;
+          discriminator?: number;
           avatar?: string | null;
         };
         Relationships: [];
