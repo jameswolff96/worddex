@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { POKEMON_LIST } from "@/lib/game/pokemonList";
 import { pokemonSpriteUrl } from "@/lib/game/sprites";
 import { updateAvatar } from "./actions";
 
 export function AvatarSelector({ currentAvatar }: { currentAvatar: string | null }) {
+  const router = useRouter();
   const [avatar, setAvatar] = useState(currentAvatar);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -29,6 +31,8 @@ export function AvatarSelector({ currentAvatar }: { currentAvatar: string | null
       if (result?.error) {
         setAvatar(prev);
         setError(result.error);
+      } else {
+        router.refresh();
       }
     });
   }
