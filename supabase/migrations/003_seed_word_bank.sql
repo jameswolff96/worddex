@@ -96,4 +96,4 @@ insert into public.adjectives (word) values
 ('Phantom'), ('Radiant'), ('Shiny'), ('Legendary'), ('Cosmic'),
 ('Shadow'), ('Crystal'), ('Golden'), ('Sapphire'), ('Crimson'),
 ('Electric'), ('Psychic'), ('Spectral'), ('Iron'), ('Stormy'),
-('Ancient'), ('Primal'), ('Mega'), ('Ultra'), ('Galactic');
+('Primal'), ('Mega'), ('Ultra'), ('Galactic');
