@@ -206,6 +206,20 @@ export async function endGame(lobbyId: string): Promise<LobbyError | undefined> 
   await supabase.from("lobbies").update({ status: "finished" }).eq("id", lobbyId);
 }
 
+export async function cancelLobby(lobbyId: string): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { error } = await supabase
+    .from("lobbies")
+    .update({ status: "finished" })
+    .eq("id", lobbyId)
+    .eq("host_user_id", user.id);
+  if (error) return { error: error.message };
+}
+
 export async function abandonGame(
   lobbyId: string,
   playerId: string

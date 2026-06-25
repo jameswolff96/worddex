@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
-import { joinLobby, startGame, kickPlayer } from "../actions";
+import { joinLobby, startGame, kickPlayer, abandonGame, cancelLobby } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
 
 interface Player {
@@ -60,6 +60,7 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const isHost = currentUserId === initialLobby.host_user_id;
+  const myPlayerId = players.find((p) => p.user_id === currentUserId)?.id ?? null;
   const captchaRef = useRef<HCaptcha>(null);
   const isGuest = !currentUserId;
 
@@ -100,9 +101,9 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
           filter: `id=eq.${initialLobby.id}`,
         },
         (payload) => {
-          if ((payload.new as { status: string }).status === "playing") {
-            router.push(`/lobby/${initialLobby.code}/play`);
-          }
+          const status = (payload.new as { status: string }).status;
+          if (status === "playing") router.push(`/lobby/${initialLobby.code}/play`);
+          if (status === "finished") router.push("/");
         }
       )
       .subscribe();
@@ -265,20 +266,53 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
       )}
 
       {joined && isHost && (
-        <button
-          onClick={handleStartGame}
-          disabled={players.length < 2}
-          className="pc-btn pc-btn-red pc-btn-block"
-          style={{ fontSize: "1.05rem" }}
-        >
-          {players.length < 2 ? "Need at least 2 players to start" : "Start game →"}
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleStartGame}
+            disabled={players.length < 2 || isPending}
+            className="pc-btn pc-btn-red pc-btn-block"
+            style={{ fontSize: "1.05rem" }}
+          >
+            {players.length < 2 ? "Need at least 2 players to start" : "Start game →"}
+          </button>
+          <button
+            disabled={isPending}
+            className="pc-btn pc-btn-ghost pc-btn-block"
+            style={{ fontSize: "0.85rem" }}
+            onClick={() => {
+              if (!confirm("Cancel this lobby? All players will be returned to the home screen.")) return;
+              startTransition(async () => {
+                const result = await cancelLobby(initialLobby.id);
+                if (result?.error) setError(result.error);
+                else router.push("/");
+              });
+            }}
+          >
+            Cancel lobby
+          </button>
+        </div>
       )}
 
       {joined && !isHost && (
-        <p className="text-center text-sm" style={{ color: "var(--pc-muted)" }}>
-          Waiting for the host to start the game…
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-center text-sm" style={{ color: "var(--pc-muted)" }}>
+            Waiting for the host to start the game…
+          </p>
+          <button
+            disabled={isPending}
+            className="pc-btn pc-btn-ghost"
+            style={{ fontSize: "0.85rem" }}
+            onClick={() => {
+              if (!myPlayerId) return;
+              startTransition(async () => {
+                await abandonGame(initialLobby.id, myPlayerId);
+                router.push("/");
+              });
+            }}
+          >
+            Leave lobby
+          </button>
+        </div>
       )}
     </div>
   );
