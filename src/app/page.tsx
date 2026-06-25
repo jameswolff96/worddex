@@ -180,6 +180,19 @@ export default async function HomePage() {
           <span>&middot;</span>
           <Link href="/terms" style={{ color: "var(--pc-muted)" }}>Terms of Service</Link>
         </div>
+        <div className="mt-2">
+          Inspired by{" "}
+          <a href="https://discord.gg/5fdHNjPTTy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>
+            Zane Games
+          </a>
+        </div>
+        <div className="mt-1">
+          A{" "}
+          <a href="https://discord.gg/fEJjGJPzCB" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>
+            Degenerate Games
+          </a>
+          {" "}production
+        </div>
       </footer>
     </div>
   );
