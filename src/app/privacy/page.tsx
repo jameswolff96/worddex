@@ -23,17 +23,17 @@ export default function PrivacyPage() {
 
         <p className="text-sm font-bold mb-1">For Logged-In Users (OAuth)</p>
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li><strong>Email address</strong>: Provided by your OAuth provider (Google, etc.) during signup</li>
+          <li><strong>Email address</strong>: Provided by your OAuth provider (Google, etc.) during sign-in</li>
           <li><strong>OAuth provider</strong>: We track which provider you used, but not your credentials</li>
-          <li><strong>Display name and avatar</strong>: You choose these; they're visible to other players in lobbies</li>
+          <li><strong>Display name and avatar</strong>: You choose these; they are visible to other players in lobbies</li>
           <li><strong>Game statistics</strong>: Wins/losses, favorite categories, number of games</li>
         </ul>
 
         <p className="text-sm font-bold mb-1">For Anonymous Users</p>
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li><strong>Auto-generated display name</strong>: A randomly-generated adjective+noun combination (e.g. "Swift Charizard")</li>
-          <li><strong>Game activity</strong>: Chat messages, guesses, game outcomes — not tied to a persistent identity</li>
-          <li><strong>No email or identity tracking</strong>: Anonymous accounts are ephemeral; closing the browser ends the session</li>
+          <li><strong>Auto-generated display name</strong>: A randomly-generated adjective + Pokémon combination (e.g. "Swift Charizard")</li>
+          <li><strong>Game activity</strong>: Chat messages, guesses, game outcomes — stored in our database and associated with your anonymous session</li>
+          <li><strong>No email</strong>: Anonymous accounts do not require or store an email address</li>
         </ul>
 
         <p className="text-sm font-bold mb-1">Game Activity (All Users)</p>
@@ -45,9 +45,15 @@ export default function PrivacyPage() {
 
         <p className="text-sm font-bold mb-1">Technical Information</p>
         <ul className="text-sm space-y-1 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li><strong>IP address and device info</strong>: Collected by our hosting providers (Vercel, Supabase) for security</li>
-          <li><strong>NO cookies</strong>: We do not use cookies or similar tracking technologies</li>
-          <li><strong>NO localStorage</strong>: We do not store persistent data in your browser</li>
+          <li><strong>IP address and device info</strong>: Collected by our hosting providers (Vercel, Supabase) for security and abuse prevention</li>
+          <li>
+            <strong>Auth session cookie</strong>: A short-lived cookie is set when you sign in (including anonymous sign-in)
+            to maintain your session. It is deleted when you sign out and is not used for tracking.
+          </li>
+          <li>
+            <strong>localStorage</strong>: We store your theme preference (light/dark mode) in your browser&apos;s localStorage.
+            This contains no personal data and is never sent to our servers.
+          </li>
         </ul>
       </div>
 
@@ -60,14 +66,14 @@ export default function PrivacyPage() {
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
           <li>Account management and persistent profile</li>
           <li>Running lobbies, syncing game state, scoring, and game history</li>
-          <li>Contacting you about account issues (rarely, via your OAuth provider's email)</li>
+          <li>Contacting you about account issues (rarely, via your OAuth provider&apos;s email)</li>
           <li>Reviewing anonymized game data to improve gameplay</li>
         </ul>
 
         <p className="text-sm font-bold mb-1">For Anonymous Users</p>
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
           <li>Game functionality only — running lobbies and scoring during your session</li>
-          <li>No persistent storage; no communication</li>
+          <li>No email communication</li>
         </ul>
 
         <p className="text-sm font-bold mb-2">We do <em>not</em>:</p>
@@ -96,9 +102,16 @@ export default function PrivacyPage() {
               Vercel Privacy Policy
             </a>
           </li>
+          <li>
+            <strong>hCaptcha</strong> (Bot protection) — used during anonymous sign-in to prevent abuse.
+            hCaptcha may collect browser and device information to verify you are human.{" "}
+            <a href="https://www.hcaptcha.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>
+              hCaptcha Privacy Policy
+            </a>
+          </li>
         </ul>
         <p className="text-sm mt-3" style={{ color: "var(--pc-muted)" }}>
-          Both services may collect your IP address and basic usage data per their own policies.
+          These services may collect your IP address and basic usage data per their own policies.
         </p>
       </div>
 
@@ -109,14 +122,14 @@ export default function PrivacyPage() {
         <p className="text-sm font-bold mb-1">Logged-In Users</p>
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
           <li>Account data kept as long as your account exists</li>
-          <li>Game history and chat kept indefinitely (you may request deletion)</li>
-          <li>Deleted accounts: data removed within 30 days, except aggregated statistics</li>
+          <li>Game history and chat messages retained indefinitely; contact us to request deletion</li>
+          <li>Deleted accounts: associated data removed within 30 days</li>
         </ul>
         <p className="text-sm font-bold mb-1">Anonymous Users</p>
         <ul className="text-sm space-y-1 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li>Session data retained only during your active session</li>
-          <li>All persistent data deleted on logout/browser close</li>
-          <li>Chat history may be retained on the server up to 30 days, then deleted</li>
+          <li>Your anonymous session and associated game data are stored in our database</li>
+          <li>Anonymous accounts and their data are automatically deleted after 30 days of inactivity</li>
+          <li>You can also request manual deletion by contacting us</li>
         </ul>
       </div>
 
@@ -125,13 +138,12 @@ export default function PrivacyPage() {
           Your Rights
         </h3>
         <p className="text-sm mb-3" style={{ color: "var(--pc-muted)" }}>
-          These rights apply to logged-in users with persistent accounts. Anonymous users do not have persistent data to access or delete beyond closing their browser.
+          These rights apply to all users. Anonymous users can request deletion by providing their display name and approximate session date.
         </p>
         <ul className="text-sm space-y-1 mb-4 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li><strong>Access</strong>: Request a copy of the personal data we hold about you</li>
-          <li><strong>Correction</strong>: Update your display name and avatar anytime</li>
-          <li><strong>Deletion</strong>: Request account deletion; data removed within 30 days</li>
-          <li><strong>Export</strong>: Request your game history in a portable format</li>
+          <li><strong>Access &amp; Export</strong>: Download a copy of your profile, stats, game history, and chat messages at any time from your <a href="/profile" style={{ color: "var(--pc-blue)" }}>profile page</a></li>
+          <li><strong>Correction</strong>: Update your display name and avatar anytime on your profile page</li>
+          <li><strong>Deletion</strong>: Delete your account and all associated data directly from your profile page; takes effect immediately</li>
         </ul>
         <p className="text-sm" style={{ color: "var(--pc-muted)" }}>
           To exercise any of these rights, email us at{" "}
@@ -150,7 +162,7 @@ export default function PrivacyPage() {
           If we become aware of such collection, we will delete that account and data immediately.
         </p>
         <p className="text-sm" style={{ color: "var(--pc-text)" }}>
-          WordDex is governed by the laws of the State of Oklahoma, USA. If you're in the EU, California, or other regions
+          WordDex is governed by the laws of the State of Oklahoma, USA. If you are in the EU, California, or other regions
           with data protection laws (GDPR, CCPA, etc.), you have additional rights under those laws.
           Contact us for details on how we comply with regional regulations.
         </p>

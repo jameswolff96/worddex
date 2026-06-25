@@ -17,6 +17,7 @@ export type Database = {
           discriminator: number;
           avatar: string | null;
           created_at: string;
+          last_data_export_at: string | null;
         };
         Insert: {
           id: string;
@@ -25,11 +26,13 @@ export type Database = {
           discriminator: number;
           avatar?: string | null;
           created_at?: string;
+          last_data_export_at?: string | null;
         };
         Update: {
           display_name?: string;
           discriminator?: number;
           avatar?: string | null;
+          last_data_export_at?: string | null;
         };
         Relationships: [];
       };

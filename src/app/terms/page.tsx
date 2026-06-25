@@ -86,9 +86,10 @@ export default function TermsPage() {
         </ul>
         <p className="text-sm font-bold mb-1">Anonymous Accounts</p>
         <ul className="text-sm space-y-1 list-disc pl-5" style={{ color: "var(--pc-text)" }}>
-          <li>No sign-up required — just join a lobby and play</li>
-          <li>Your auto-generated display name is valid only for that session</li>
-          <li>Game history will not persist after you close the browser; no account recovery is possible</li>
+          <li>No sign-up required — complete a quick bot-check and play</li>
+          <li>Your auto-generated display name persists for the duration of your session</li>
+          <li>Game data is stored in our database and deleted automatically after 30 days of inactivity</li>
+          <li>No account recovery is possible for anonymous sessions</li>
           <li>By using anonymous mode, you still agree to these Terms</li>
         </ul>
       </div>
@@ -134,6 +135,12 @@ export default function TermsPage() {
             <strong>Vercel</strong> —{" "}
             <a href="https://vercel.com/legal/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>
               Vercel Terms
+            </a>
+          </li>
+          <li>
+            <strong>hCaptcha</strong> —{" "}
+            <a href="https://www.hcaptcha.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>
+              hCaptcha Terms
             </a>
           </li>
         </ul>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { updateDisplayName, deleteAccount, type ProfileError } from "./actions";
+import { useActionState, useRef, useState, useTransition } from "react";
+import { updateDisplayName, deleteAccount, exportMyData, type ProfileError } from "./actions";
 
 interface Props {
   displayName: string;
@@ -21,7 +21,27 @@ export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Prop
   );
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, startExport] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleExport() {
+    setExportError(null);
+    startExport(async () => {
+      const result = await exportMyData();
+      if ("error" in result) {
+        setExportError(result.error);
+        return;
+      }
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `worddex-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
 
   const joined = new Date(createdAt).toLocaleDateString(undefined, {
     year: "numeric", month: "long", day: "numeric",
@@ -87,6 +107,25 @@ export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Prop
             {namePending ? "Saving…" : "Save display name →"}
           </button>
         </form>
+      </div>
+
+      {/* ── Data export ── */}
+      <div className="pc-card">
+        <h2 className="pc-h2">Your data</h2>
+        <p className="text-sm mb-3" style={{ color: "var(--pc-muted)" }}>
+          Download a copy of your profile, stats, game history, and chat messages as a JSON file.
+        </p>
+        {exportError && (
+          <p className="text-sm font-bold mb-2" style={{ color: "var(--pc-red)" }}>{exportError}</p>
+        )}
+        <button
+          type="button"
+          disabled={isExporting}
+          onClick={handleExport}
+          className="pc-btn pc-btn-ghost"
+        >
+          {isExporting ? "Preparing download…" : "Download my data"}
+        </button>
       </div>
 
       {/* ── Danger zone ── */}
