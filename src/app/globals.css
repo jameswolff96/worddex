@@ -143,7 +143,7 @@ label:has(:checked) .pc-pill { background: var(--pc-green); color: #fff; }
   text-align: center;
   transition: background 0.25s ease;
 }
-.pc-scorechip-active { background: var(--pc-yellow); }
+.pc-scorechip-active { background: var(--pc-yellow); color: #1d2230; }
 
 .pc-slot {
   border: 2px solid var(--pc-ink);
