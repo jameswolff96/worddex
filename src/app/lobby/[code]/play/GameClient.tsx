@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -91,6 +91,7 @@ interface Props {
   initialChat: ChatMessage[];
   currentUserId: string | null;
   myPlayerId: string | null;
+  wordBank: { term: string; category: string }[];
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -112,6 +113,7 @@ export function GameClient({
   initialChat,
   currentUserId,
   myPlayerId,
+  wordBank,
 }: Props) {
   const supabase = createClient();
   const router = useRouter();
@@ -360,9 +362,15 @@ export function GameClient({
     return playerDisplayName(p, collidingNames);
   }
 
-  // ── Guess options: all word bank terms visible to guessers ──
-  // For now use a simple text input; a dropdown from server would need API call
   const [guessInput, setGuessInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+
+  const suggestions = useMemo(() => {
+    if (!guessInput.trim()) return [];
+    const q = guessInput.toLowerCase();
+    return wordBank.filter((t) => t.term.toLowerCase().includes(q)).slice(0, 8);
+  }, [guessInput, wordBank]);
 
   // ── Render ──
 
@@ -758,36 +766,128 @@ export function GameClient({
               )}
             </>
           ) : (
-            <div style={{ display: "flex", gap: 6 }}>
-              <input
-                value={guessInput}
-                onChange={(e) => setGuessInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && guessInput.trim()) {
-                    handleGuess(guessInput.trim());
-                    setGuessInput("");
+            <div style={{ position: "relative" }}>
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 4px)",
+                    left: 0,
+                    right: 0,
+                    background: "var(--pc-card)",
+                    border: "3px solid var(--pc-ink)",
+                    borderRadius: 10,
+                    boxShadow: "var(--pc-shadow)",
+                    zIndex: 20,
+                    maxHeight: 220,
+                    overflowY: "auto",
+                  }}
+                >
+                  {suggestions.map((t, i) => (
+                    <button
+                      key={t.term}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleGuess(t.term);
+                        setGuessInput("");
+                        setShowSuggestions(false);
+                        setSelectedIdx(-1);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: i === selectedIdx ? "var(--pc-input-bg)" : "transparent",
+                        border: "none",
+                        borderBottom: i < suggestions.length - 1 ? "1px solid var(--pc-ink)" : "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        color: "var(--pc-text)",
+                        fontFamily: "inherit",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700 }}>{t.term}</span>
+                      <span style={{ fontSize: "0.72rem", color: "var(--pc-muted)" }}>{t.category}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  value={guessInput}
+                  onChange={(e) => {
+                    setGuessInput(e.target.value);
+                    setShowSuggestions(true);
+                    setSelectedIdx(-1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (showSuggestions && suggestions.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setSelectedIdx((i) => Math.max(i - 1, -1));
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        setShowSuggestions(false);
+                        setSelectedIdx(-1);
+                        return;
+                      }
+                    }
+                    if (e.key === "Enter") {
+                      const term =
+                        selectedIdx >= 0
+                          ? suggestions[selectedIdx]?.term
+                          : guessInput.trim();
+                      if (term) {
+                        handleGuess(term);
+                        setGuessInput("");
+                        setShowSuggestions(false);
+                        setSelectedIdx(-1);
+                      }
+                    }
+                  }}
+                  onFocus={() => {
+                    if (guessInput.trim()) setShowSuggestions(true);
+                  }}
+                  onBlur={() => setShowSuggestions(false)}
+                  placeholder="Type your guess…"
+                  className="pc-input"
+                  style={{ flex: 1, marginBottom: 0 }}
+                  disabled={isPending || !currentTerm?.current_clue_message_id}
+                />
+                <button
+                  onClick={() => {
+                    const term =
+                      selectedIdx >= 0
+                        ? suggestions[selectedIdx]?.term
+                        : guessInput.trim();
+                    if (term) {
+                      handleGuess(term);
+                      setGuessInput("");
+                      setShowSuggestions(false);
+                      setSelectedIdx(-1);
+                    }
+                  }}
+                  disabled={
+                    isPending ||
+                    !guessInput.trim() ||
+                    !currentTerm?.current_clue_message_id
                   }
-                }}
-                placeholder="Type your guess…"
-                className="pc-input"
-                style={{ flex: 1, marginBottom: 0 }}
-                disabled={isPending || !currentTerm?.current_clue_message_id}
-              />
-              <button
-                onClick={() => {
-                  handleGuess(guessInput.trim());
-                  setGuessInput("");
-                }}
-                disabled={
-                  isPending ||
-                  !guessInput.trim() ||
-                  !currentTerm?.current_clue_message_id
-                }
-                className="pc-btn pc-btn-green"
-                style={{ flexShrink: 0, padding: "8px 14px" }}
-              >
-                Guess
-              </button>
+                  className="pc-btn pc-btn-green"
+                  style={{ flexShrink: 0, padding: "8px 14px" }}
+                >
+                  Guess
+                </button>
+              </div>
             </div>
           )}
         </div>

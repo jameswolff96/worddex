@@ -109,6 +109,13 @@ export default async function PlayPage({ params }: Props) {
     ? lobby.lobby_players.find((p) => p.user_id === user.id)
     : null;
 
+  const { data: rawWordBank } = await supabase
+    .from("word_bank")
+    .select("term, category")
+    .eq("is_active", true)
+    .in("category", lobby.rules.categories);
+  const wordBank = (rawWordBank ?? []) as { term: string; category: string }[];
+
   return (
     <GameClient
       lobby={lobby}
@@ -116,6 +123,7 @@ export default async function PlayPage({ params }: Props) {
       initialChat={chatHistory}
       currentUserId={user?.id ?? null}
       myPlayerId={myPlayer?.id ?? null}
+      wordBank={wordBank}
     />
   );
 }
