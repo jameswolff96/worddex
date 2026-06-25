@@ -162,6 +162,7 @@ export type Database = {
           slot_grid: Json;
           used_words_this_turn: string[];
           used_term_ids: number[];
+          terms_completed_this_turn: number;
           phase: string;
           updated_at: string;
         };
@@ -174,6 +175,7 @@ export type Database = {
           slot_grid?: Json;
           used_words_this_turn?: string[];
           used_term_ids?: number[];
+          terms_completed_this_turn?: number;
           phase?: string;
           updated_at?: string;
         };
@@ -185,6 +187,7 @@ export type Database = {
           slot_grid?: Json;
           used_words_this_turn?: string[];
           used_term_ids?: number[];
+          terms_completed_this_turn?: number;
           phase?: string;
           updated_at?: string;
         };

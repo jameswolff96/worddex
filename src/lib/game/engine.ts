@@ -81,6 +81,7 @@ export async function initializeGame(lobbyId: string): Promise<GameError | void>
       slot_grid: slots as unknown as import("@/lib/types/database").Json,
       used_words_this_turn: [],
       used_term_ids: [term.id],
+      terms_completed_this_turn: 0,
       phase: "clueing",
     })
     .eq("lobby_id", lobbyId);
@@ -216,6 +217,7 @@ export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
       slot_grid: slots as unknown as import("@/lib/types/database").Json,
       used_words_this_turn: [],
       used_term_ids: [...(gameState.used_term_ids as number[]), term.id],
+      terms_completed_this_turn: 0,
       phase: "clueing",
     })
     .eq("lobby_id", lobbyId);
@@ -458,15 +460,22 @@ export async function submitGuess(
 
     const rules = lobby?.rules as unknown as LobbyRules;
     if (mode === "classroom_streamer" && rules.classroom_scoring_mode === "first_correct") {
-      await advanceToNextTerm(lobbyId, gameState);
+      await advanceToNextTerm(lobbyId, gameState, true);
     } else {
+      const completedThisTurn = ((gameState.terms_completed_this_turn as number) ?? 0) + 1;
+      const isFinal = completedThisTurn >= rules.terms_per_turn;
       await supabase.from("chat_messages").insert({
         lobby_id: lobbyId,
         kind: "system",
-        content: "✓ Correct! Turn ends in 10 seconds.",
+        content: isFinal
+          ? `✓ Correct! Turn complete — advancing in 10 seconds.`
+          : `✓ Correct! (${completedThisTurn}/${rules.terms_per_turn}) Next term in 10 seconds.`,
         metadata: { countdown: true },
       });
-      await supabase.from("game_state").update({ phase: "correct_guess" }).eq("lobby_id", lobbyId);
+      await supabase.from("game_state").update({
+        phase: "correct_guess",
+        terms_completed_this_turn: completedThisTurn,
+      }).eq("lobby_id", lobbyId);
     }
   }
 
@@ -597,7 +606,7 @@ export async function skipTerm(lobbyId: string): Promise<GameError | void> {
 
 // ── Advance to next term or end turn ──────────────────────
 
-async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow) {
+async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCorrect = false) {
   const supabase = await createClient();
 
   const { data: lobby } = await supabase
@@ -606,6 +615,18 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow) {
     .eq("id", lobbyId)
     .single();
   const rules = lobby?.rules as unknown as LobbyRules;
+
+  const completedSoFar = (gameState.terms_completed_this_turn as number) ?? 0;
+  const newCompleted = wasCorrect ? completedSoFar + 1 : completedSoFar;
+
+  if (newCompleted >= rules.terms_per_turn) {
+    await supabase
+      .from("game_state")
+      .update({ terms_completed_this_turn: newCompleted })
+      .eq("lobby_id", lobbyId);
+    await endTurn(lobbyId, gameState);
+    return;
+  }
 
   const nextTerm = await pickTerm(
     lobbyId,
@@ -630,18 +651,68 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow) {
     .from("game_state")
     .update({
       current_term: updatedTerm as unknown as import("@/lib/types/database").Json,
-      used_term_ids: [
-        ...(gameState.used_term_ids as number[]),
-        nextTerm.id,
-      ],
+      used_term_ids: [...(gameState.used_term_ids as number[]), nextTerm.id],
+      terms_completed_this_turn: newCompleted,
     })
     .eq("lobby_id", lobbyId);
 
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
-    content: "Next term!",
+    content: wasCorrect
+      ? `✓ Term ${newCompleted}/${rules.terms_per_turn} complete! Next term…`
+      : "Term skipped. Next term!",
   });
+}
+
+// ── Advance to the next term for the same clue master ─────
+// Called by the client after the 10-second countdown when terms remain.
+
+export async function nextTerm(lobbyId: string): Promise<GameError | void> {
+  const supabase = await createClient();
+
+  const { data: gs } = await supabase
+    .from("game_state")
+    .select("*")
+    .eq("lobby_id", lobbyId)
+    .single();
+  if (!gs) return { error: "Game state not found" };
+  const gameState = gs as unknown as GameStateRow;
+
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("rules")
+    .eq("id", lobbyId)
+    .single();
+  if (!lobby) return { error: "Lobby not found" };
+  const rules = lobby.rules as unknown as LobbyRules;
+
+  const nextTermData = await pickTerm(
+    lobbyId,
+    gameState.used_term_ids as number[],
+    rules.categories
+  );
+  if (!nextTermData) {
+    await endTurn(lobbyId, gameState);
+    return;
+  }
+
+  const updatedTerm: CurrentTerm = {
+    term: nextTermData.term,
+    category: nextTermData.category,
+    word_bank_id: nextTermData.id,
+    sprite_ref: nextTermData.sprite_ref,
+    current_clue_message_id: null,
+  };
+
+  await supabase
+    .from("game_state")
+    .update({
+      current_term: updatedTerm as unknown as import("@/lib/types/database").Json,
+      used_term_ids: [...(gameState.used_term_ids as number[]), nextTermData.id],
+      phase: "clueing",
+    })
+    .eq("lobby_id", lobbyId);
 }
 
 // ── End turn ──────────────────────────────────────────────

@@ -11,6 +11,7 @@ import {
   forcedSkip,
   endTurn,
   advanceTurn,
+  nextTerm,
 } from "@/lib/game/engine";
 import { endGame, abandonGame } from "@/app/lobby/actions";
 import type {
@@ -70,6 +71,7 @@ interface GameState {
   current_term: CurrentTerm | null;
   slot_grid: SlotCell[];
   used_words_this_turn: string[];
+  terms_completed_this_turn: number;
   phase: GamePhase;
 }
 
@@ -230,7 +232,12 @@ export function GameClient({
       }, 5000);
 
       const t0 = setTimeout(async () => {
-        await endTurn(lobby.id);
+        const termsCompleted = gs.terms_completed_this_turn ?? 0;
+        if (termsCompleted < rules.terms_per_turn) {
+          await nextTerm(lobby.id);
+        } else {
+          await endTurn(lobby.id);
+        }
       }, 10000);
 
       countdownTimers.current = [t5, t0];
