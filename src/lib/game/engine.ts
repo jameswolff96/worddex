@@ -12,6 +12,220 @@ import type {
 
 export type GameError = { error: string };
 
+// ── Initialize the game (called once when host starts) ─────
+
+export async function initializeGame(lobbyId: string): Promise<GameError | void> {
+  const supabase = await createClient();
+
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("mode, rules")
+    .eq("id", lobbyId)
+    .single();
+  if (!lobby) return { error: "Lobby not found" };
+
+  const mode = lobby.mode as string;
+  const rules = lobby.rules as unknown as LobbyRules;
+
+  let firstPlayerId: string | null = null;
+  let firstTeamId: string | null = null;
+
+  if (mode === "teams") {
+    const { data: teams } = await supabase
+      .from("lobby_teams")
+      .select("id")
+      .eq("lobby_id", lobbyId)
+      .order("turn_order")
+      .limit(1);
+    firstTeamId = teams?.[0]?.id ?? null;
+
+    if (firstTeamId) {
+      const { data: teamPlayers } = await supabase
+        .from("lobby_players")
+        .select("id")
+        .eq("lobby_id", lobbyId)
+        .eq("team_id", firstTeamId)
+        .order("join_order")
+        .limit(1);
+      firstPlayerId = teamPlayers?.[0]?.id ?? null;
+    }
+  } else {
+    const { data: players } = await supabase
+      .from("lobby_players")
+      .select("id")
+      .eq("lobby_id", lobbyId)
+      .order("join_order")
+      .limit(1);
+    firstPlayerId = players?.[0]?.id ?? null;
+  }
+
+  const term = await pickTerm(lobbyId, [], rules.categories);
+  if (!term) return { error: "No terms available in the selected categories" };
+
+  const slots: SlotCell[] = Array.from({ length: rules.word_budget }, () => ({ kind: "empty" as const }));
+  const currentTerm: CurrentTerm = {
+    term: term.term,
+    category: term.category,
+    word_bank_id: term.id,
+    current_clue_message_id: null,
+  };
+
+  const { error } = await supabase
+    .from("game_state")
+    .update({
+      current_round: 1,
+      current_turn_player_id: firstPlayerId,
+      current_team_id: firstTeamId,
+      current_term: currentTerm as unknown as import("@/lib/types/database").Json,
+      slot_grid: slots as unknown as import("@/lib/types/database").Json,
+      used_words_this_turn: [],
+      used_term_ids: [term.id],
+      phase: "clueing",
+    })
+    .eq("lobby_id", lobbyId);
+
+  if (error) return { error: error.message };
+
+  await supabase.from("chat_messages").insert({
+    lobby_id: lobbyId,
+    kind: "system",
+    content: "Game started! First term is ready.",
+    metadata: {},
+  });
+}
+
+// ── Advance to next player/team's turn ────────────────────
+
+export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
+  const supabase = await createClient();
+
+  const { data: gs } = await supabase
+    .from("game_state")
+    .select("*")
+    .eq("lobby_id", lobbyId)
+    .single();
+  if (!gs) return { error: "Game state not found" };
+  const gameState = gs as unknown as GameStateRow;
+
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("mode, rules")
+    .eq("id", lobbyId)
+    .single();
+  if (!lobby) return { error: "Lobby not found" };
+
+  const mode = lobby.mode as string;
+  const rules = lobby.rules as unknown as LobbyRules;
+  const totalRounds = rules.number_of_rounds;
+
+  let nextPlayerId: string | null = null;
+  let nextTeamId: string | null = null;
+  let nextRound = gameState.current_round;
+  let isNewRound = false;
+
+  if (mode === "solo") {
+    const { data: players } = await supabase
+      .from("lobby_players")
+      .select("id, join_order")
+      .eq("lobby_id", lobbyId)
+      .order("join_order");
+    if (!players?.length) return { error: "No players found" };
+
+    const currentIdx = players.findIndex((p) => p.id === gameState.current_turn_player_id);
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= players.length) {
+      nextRound++;
+      isNewRound = true;
+      nextPlayerId = players[0].id;
+    } else {
+      nextPlayerId = players[nextIdx].id;
+    }
+
+  } else if (mode === "teams") {
+    const { data: teams } = await supabase
+      .from("lobby_teams")
+      .select("id, turn_order")
+      .eq("lobby_id", lobbyId)
+      .order("turn_order");
+    if (!teams?.length) return { error: "No teams found" };
+
+    const currentIdx = teams.findIndex((t) => t.id === gameState.current_team_id);
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= teams.length) {
+      nextRound++;
+      isNewRound = true;
+      nextTeamId = teams[0].id;
+    } else {
+      nextTeamId = teams[nextIdx].id;
+    }
+
+    if (nextTeamId) {
+      const { data: teamPlayers } = await supabase
+        .from("lobby_players")
+        .select("id")
+        .eq("lobby_id", lobbyId)
+        .eq("team_id", nextTeamId)
+        .order("join_order")
+        .limit(1);
+      nextPlayerId = teamPlayers?.[0]?.id ?? null;
+    }
+
+  } else {
+    // classroom_streamer: same clue giver, just new round
+    nextPlayerId = gameState.current_turn_player_id;
+    nextRound++;
+    isNewRound = true;
+  }
+
+  if (nextRound > totalRounds) {
+    await supabase.from("game_state").update({ phase: "game_over" }).eq("lobby_id", lobbyId);
+    await supabase.from("lobbies").update({ status: "finished" }).eq("id", lobbyId);
+    await supabase.from("chat_messages").insert({
+      lobby_id: lobbyId,
+      kind: "system",
+      content: "Game over! Final scores above.",
+      metadata: {},
+    });
+    return;
+  }
+
+  const term = await pickTerm(
+    lobbyId,
+    gameState.used_term_ids as number[],
+    rules.categories
+  );
+  if (!term) return { error: "No more terms available" };
+
+  const slots: SlotCell[] = Array.from({ length: rules.word_budget }, () => ({ kind: "empty" as const }));
+  const currentTerm: CurrentTerm = {
+    term: term.term,
+    category: term.category,
+    word_bank_id: term.id,
+    current_clue_message_id: null,
+  };
+
+  await supabase
+    .from("game_state")
+    .update({
+      current_round: nextRound,
+      current_turn_player_id: nextPlayerId,
+      current_team_id: nextTeamId,
+      current_term: currentTerm as unknown as import("@/lib/types/database").Json,
+      slot_grid: slots as unknown as import("@/lib/types/database").Json,
+      used_words_this_turn: [],
+      used_term_ids: [...(gameState.used_term_ids as number[]), term.id],
+      phase: "clueing",
+    })
+    .eq("lobby_id", lobbyId);
+
+  await supabase.from("chat_messages").insert({
+    lobby_id: lobbyId,
+    kind: "system",
+    content: isNewRound ? `Round ${nextRound} begins!` : "Next team's turn!",
+    metadata: {},
+  });
+}
+
 // ── Start a player/team's turn ─────────────────────────────
 
 export async function startTurn(lobbyId: string): Promise<GameError | void> {

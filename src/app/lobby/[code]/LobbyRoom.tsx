@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { joinLobby } from "../actions";
+import { joinLobby, startGame } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
 
 interface Player {
@@ -115,11 +115,8 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
   }
 
   async function handleStartGame() {
-    const { error: err } = await supabase
-      .from("lobbies")
-      .update({ status: "playing" })
-      .eq("id", initialLobby.id);
-    if (err) setError(err.message);
+    const result = await startGame(initialLobby.id);
+    if (result?.error) setError(result.error);
   }
 
   const displayName = (p: Player) =>

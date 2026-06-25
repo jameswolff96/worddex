@@ -10,6 +10,7 @@ import {
   forcedSkip,
   endTurn,
   startTurn,
+  advanceTurn,
 } from "@/lib/game/engine";
 import type {
   LobbyRules,
@@ -285,6 +286,47 @@ export function GameClient({
         <Brandbar />
         <div className="pc-card text-center">
           <p style={{ color: "var(--pc-muted)" }}>Waiting for the game to start…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (gs.phase === "turn_end") {
+    const isHost = currentUserId === lobby.host_user_id;
+    return (
+      <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
+        <Brandbar />
+        <div className="pc-card text-center">
+          <h2 className="pc-h2" style={{ textAlign: "center" }}>Turn complete!</h2>
+          <ul className="mt-3 mb-5 space-y-2">
+            {[...scores]
+              .sort((a, b) => b.score - a.score)
+              .map((s) => (
+                <li key={s.id} className="flex justify-between px-3 py-2 rounded-lg"
+                  style={{ border: "2px solid var(--pc-ink)", background: "var(--pc-input-bg)" }}>
+                  <span className="font-bold">{s.name}</span>
+                  <span style={{ color: "var(--pc-blue)" }}>{s.score} pts</span>
+                </li>
+              ))}
+          </ul>
+          {error && <p className="text-sm font-bold mb-3" style={{ color: "var(--pc-red)" }}>{error}</p>}
+          {isHost ? (
+            <button
+              disabled={isPending}
+              className="pc-btn pc-btn-red"
+              onClick={() => {
+                setError(null);
+                startTransition(async () => {
+                  const result = await advanceTurn(lobby.id);
+                  if (result?.error) setError(result.error);
+                });
+              }}
+            >
+              {isPending ? "Starting…" : "Next turn →"}
+            </button>
+          ) : (
+            <p style={{ color: "var(--pc-muted)" }}>Waiting for the host to start the next turn…</p>
+          )}
         </div>
       </div>
     );

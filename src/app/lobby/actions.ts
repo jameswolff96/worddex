@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { generateDisplayName } from "@/lib/game/nameGenerator";
+import { initializeGame } from "@/lib/game/engine";
 import type { LobbyRules } from "@/lib/types/database";
 
 export type LobbyError = { error: string };
@@ -93,6 +94,24 @@ export async function createLobby(
   });
 
   redirect(`/lobby/${lobby.code}`);
+}
+
+export async function startGame(lobbyId: string): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { error: updateError } = await supabase
+    .from("lobbies")
+    .update({ status: "playing" })
+    .eq("id", lobbyId)
+    .eq("host_user_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+
+  const initError = await initializeGame(lobbyId);
+  if (initError) return initError;
 }
 
 export async function joinLobby(
