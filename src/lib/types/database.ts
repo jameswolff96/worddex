@@ -320,6 +320,7 @@ export type CurrentTerm = {
   term: string;
   category: string;
   word_bank_id: number;
+  sprite_ref: string | null;
   current_clue_message_id: string | null;
 };
 

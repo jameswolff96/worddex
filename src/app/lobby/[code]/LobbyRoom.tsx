@@ -6,6 +6,7 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
 import { joinLobby, startGame, kickPlayer, abandonGame, cancelLobby } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
+import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
 interface Player {
   id: string;
@@ -181,7 +182,20 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                     background: "var(--pc-input-bg)",
                   }}
                 >
-                  <span>
+                  <span className="flex items-center gap-2">
+                    {pokemonSpriteUrl(p.users?.avatar) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={pokemonSpriteUrl(p.users?.avatar)!}
+                        alt=""
+                        width={32}
+                        height={32}
+                        style={{ imageRendering: "pixelated", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div className="pokeball" style={{ width: 28, height: 28, flexShrink: 0 }} />
+                    )}
+                    <span>
                     {displayName(p)}
                     {p.users?.display_name && collidingNames.has(p.users.display_name) && p.users.discriminator != null && (
                       <span className="font-normal ml-1 text-xs" style={{ color: "var(--pc-muted)" }}>
@@ -198,6 +212,7 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                         guest
                       </span>
                     )}
+                    </span>
                   </span>
                   <div className="flex items-center gap-2">
                     <span

@@ -67,6 +67,7 @@ export async function initializeGame(lobbyId: string): Promise<GameError | void>
     term: term.term,
     category: term.category,
     word_bank_id: term.id,
+    sprite_ref: term.sprite_ref,
     current_clue_message_id: null,
   };
 
@@ -201,6 +202,7 @@ export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
     term: term.term,
     category: term.category,
     word_bank_id: term.id,
+    sprite_ref: term.sprite_ref,
     current_clue_message_id: null,
   };
 
@@ -259,6 +261,7 @@ export async function startTurn(lobbyId: string): Promise<GameError | void> {
     term: term.term,
     category: term.category,
     word_bank_id: term.id,
+    sprite_ref: term.sprite_ref,
     current_clue_message_id: null,
   };
 
@@ -515,6 +518,7 @@ export async function rerollTerm(lobbyId: string): Promise<GameError | void> {
     term: newTerm.term,
     category: newTerm.category,
     word_bank_id: newTerm.id,
+    sprite_ref: newTerm.sprite_ref,
     current_clue_message_id: null,
   };
 
@@ -618,6 +622,7 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow) {
     term: nextTerm.term,
     category: nextTerm.category,
     word_bank_id: nextTerm.id,
+    sprite_ref: nextTerm.sprite_ref,
     current_clue_message_id: null,
   };
 
@@ -714,13 +719,13 @@ async function pickTerm(
   lobbyId: string,
   usedIds: number[],
   categories: string[]
-): Promise<{ id: number; term: string; category: string } | null> {
+): Promise<{ id: number; term: string; category: string; sprite_ref: string | null } | null> {
   const supabase = await createClient();
 
   // Get lobby's used_term_ids to exclude cross-turn duplication
   let query = supabase
     .from("word_bank")
-    .select("id, term, category")
+    .select("id, term, category, sprite_ref")
     .eq("is_active", true)
     .in("category", categories);
 
@@ -731,6 +736,6 @@ async function pickTerm(
   const { data } = await query;
   if (!data || data.length === 0) return null;
 
-  const rows = data as { id: number; term: string; category: string }[];
+  const rows = data as { id: number; term: string; category: string; sprite_ref: string | null }[];
   return rows[Math.floor(Math.random() * rows.length)];
 }

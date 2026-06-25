@@ -21,6 +21,7 @@ import type {
 } from "@/lib/types/database";
 import { Brandbar } from "@/components/Brandbar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
 // ── Re-export the types so play/page.tsx can share them ──
 
@@ -344,6 +345,7 @@ export function GameClient({
             name: playerDisplayName(p, collidingNames),
             score: p.score,
             active: gs?.current_turn_player_id === p.id,
+            avatar: p.users?.avatar ?? null,
           }))
       : [...teams]
           .sort((a, b) => a.turn_order - b.turn_order)
@@ -488,20 +490,33 @@ export function GameClient({
           flexShrink: 0,
         }}
       >
-        {scores.map((s) => (
-          <div
-            key={s.id}
-            className={`pc-scorechip${s.active ? " pc-scorechip-active" : ""}`}
-          >
-            <span style={{ fontSize: "0.75rem" }}>{s.name}</span>
-            <span
-              className="block"
-              style={{ fontSize: "1rem", color: "var(--pc-blue)" }}
+        {scores.map((s) => {
+          const spriteUrl = "avatar" in s ? pokemonSpriteUrl(s.avatar as string | null) : null;
+          return (
+            <div
+              key={s.id}
+              className={`pc-scorechip${s.active ? " pc-scorechip-active" : ""}`}
             >
-              {s.score}
-            </span>
-          </div>
-        ))}
+              {spriteUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={spriteUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  style={{ imageRendering: "pixelated", display: "block", margin: "0 auto -4px" }}
+                />
+              )}
+              <span style={{ fontSize: "0.75rem" }}>{s.name}</span>
+              <span
+                className="block"
+                style={{ fontSize: "1rem", color: "var(--pc-blue)" }}
+              >
+                {s.score}
+              </span>
+            </div>
+          );
+        })}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: "0.75rem", color: "var(--pc-muted)", whiteSpace: "nowrap" }}>
             Round {gs.current_round} / {rules.number_of_rounds}
@@ -591,15 +606,27 @@ export function GameClient({
               >
                 Your secret term · {currentTerm.category}
               </div>
-              <div
-                style={{
-                  fontSize: "1.5rem",
-                  fontWeight: 900,
-                  fontFamily: "'Trebuchet MS',Verdana,sans-serif",
-                  color: "var(--pc-red)",
-                }}
-              >
-                {currentTerm.term}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {pokemonSpriteUrl(currentTerm.sprite_ref) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={pokemonSpriteUrl(currentTerm.sprite_ref)!}
+                    alt={currentTerm.term}
+                    width={72}
+                    height={72}
+                    style={{ imageRendering: "pixelated", flexShrink: 0 }}
+                  />
+                )}
+                <div
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: 900,
+                    fontFamily: "'Trebuchet MS',Verdana,sans-serif",
+                    color: "var(--pc-red)",
+                  }}
+                >
+                  {currentTerm.term}
+                </div>
               </div>
               <div
                 className="flex gap-2 mt-3 flex-wrap"
