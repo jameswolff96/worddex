@@ -39,6 +39,7 @@ export async function createLobby(
     number_of_rounds: Number(formData.get("number_of_rounds")) || 3,
     terms_per_turn: Number(formData.get("terms_per_turn")) || 5,
     word_budget: Number(formData.get("word_budget")) || 25,
+    number_of_teams: Math.min(6, Math.max(2, Number(formData.get("number_of_teams")) || 2)),
     categories,
     is_18_plus_mode: formData.get("is_18_plus_mode") === "true",
     clue_master_rotation:
@@ -85,6 +86,16 @@ export async function createLobby(
     phase: "waiting",
   });
 
+  if (mode === "teams") {
+    const teamNames = ["Red", "Blue", "Green", "Purple", "Orange", "Teal"];
+    const teamRows = Array.from({ length: rules.number_of_teams }, (_, i) => ({
+      lobby_id: lobby.id,
+      name: `Team ${teamNames[i]}`,
+      turn_order: i,
+    }));
+    await supabase.from("lobby_teams").insert(teamRows);
+  }
+
   redirect(`/lobby/${lobby.code}`);
 }
 
@@ -94,12 +105,37 @@ export async function startGame(lobbyId: string): Promise<LobbyError | undefined
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("mode, host_user_id")
+    .eq("id", lobbyId)
+    .single();
+  if (!lobby || lobby.host_user_id !== user.id) return { error: "Only the host can start the game" };
+
   const { count } = await supabase
     .from("lobby_players")
     .select("id", { count: "exact", head: true })
     .eq("lobby_id", lobbyId);
 
   if (!count || count < 2) return { error: "Need at least 2 players to start" };
+
+  if (lobby.mode === "teams") {
+    const { data: teams } = await supabase
+      .from("lobby_teams")
+      .select("id")
+      .eq("lobby_id", lobbyId);
+
+    for (const team of teams ?? []) {
+      const { count: teamCount } = await supabase
+        .from("lobby_players")
+        .select("id", { count: "exact", head: true })
+        .eq("lobby_id", lobbyId)
+        .eq("team_id", team.id);
+      if (!teamCount || teamCount < 2) {
+        return { error: "Each team must have at least 2 players before starting" };
+      }
+    }
+  }
 
   const { error: updateError } = await supabase
     .from("lobbies")
@@ -111,6 +147,30 @@ export async function startGame(lobbyId: string): Promise<LobbyError | undefined
 
   const initError = await initializeGame(lobbyId);
   if (initError) return initError;
+}
+
+export async function joinTeam(
+  lobbyId: string,
+  teamId: string
+): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: player } = await supabase
+    .from("lobby_players")
+    .select("id")
+    .eq("lobby_id", lobbyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!player) return { error: "You are not in this lobby" };
+
+  const { error } = await supabase
+    .from("lobby_players")
+    .update({ team_id: teamId })
+    .eq("id", player.id);
+  if (error) return { error: error.message };
 }
 
 export async function joinLobby(lobbyId: string): Promise<LobbyError | undefined> {

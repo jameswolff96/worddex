@@ -14,6 +14,7 @@ interface LobbyData {
   rules: LobbyRules;
   status: "waiting" | "playing" | "finished";
   host_user_id: string;
+  classroom_clue_giver_player_id: string | null;
   lobby_players: Array<{
     id: string;
     user_id: string | null;
@@ -70,7 +71,7 @@ export default async function PlayPage({ params }: Props) {
   const { data: rawLobby } = await supabase
     .from("lobbies")
     .select(
-      "id, code, mode, rules, status, host_user_id, lobby_players(id, user_id, guest_name, team_id, connection_status, join_order, score, users(id, display_name, discriminator, avatar)), lobby_teams(id, name, score, turn_order, clue_master_rotation_index)"
+      "id, code, mode, rules, status, host_user_id, classroom_clue_giver_player_id, lobby_players(id, user_id, guest_name, team_id, connection_status, join_order, score, users(id, display_name, discriminator, avatar)), lobby_teams(id, name, score, turn_order, clue_master_rotation_index)"
     )
     .eq("code", code.toUpperCase())
     .single();
@@ -125,6 +126,7 @@ export default async function PlayPage({ params }: Props) {
       currentUserId={user?.id ?? null}
       myPlayerId={myPlayer?.id ?? null}
       wordBank={wordBank}
+      classroomClueGiverId={lobby.classroom_clue_giver_player_id}
     />
   );
 }

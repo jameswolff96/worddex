@@ -299,6 +299,7 @@ export type LobbyRules = {
   number_of_rounds: number;
   terms_per_turn: number;
   word_budget: number;
+  number_of_teams: number;
   categories: string[];
   is_18_plus_mode: boolean;
   clue_master_rotation: "static" | "round" | "term";

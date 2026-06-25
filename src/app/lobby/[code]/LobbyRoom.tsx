@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
-import { joinLobby, startGame, kickPlayer, abandonGame, cancelLobby } from "../actions";
+import { joinLobby, startGame, kickPlayer, abandonGame, cancelLobby, joinTeam } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
 import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
@@ -254,6 +254,72 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
         )}
       </div>
 
+      {/* ── Team assignment (teams mode only) ── */}
+      {initialLobby.mode === "teams" && joined && (
+        <div className="pc-card">
+          <h2 className="pc-h2">Teams</h2>
+          <p className="text-sm mb-3" style={{ color: "var(--pc-muted)" }}>
+            Join a team before the host starts the game.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[...initialLobby.lobby_teams]
+              .sort((a, b) => a.turn_order - b.turn_order)
+              .map((team) => {
+                const teamPlayers = players.filter((p) => p.team_id === team.id);
+                const myPlayer = players.find((p) => p.user_id === currentUserId);
+                const imOnThisTeam = myPlayer?.team_id === team.id;
+                return (
+                  <div
+                    key={team.id}
+                    style={{
+                      border: `2px solid ${imOnThisTeam ? "var(--pc-red)" : "var(--pc-ink)"}`,
+                      borderRadius: 10,
+                      padding: 12,
+                      background: "var(--pc-input-bg)",
+                    }}
+                  >
+                    <div className="font-bold text-sm mb-2" style={{ color: imOnThisTeam ? "var(--pc-red)" : "var(--pc-text)" }}>
+                      {team.name}
+                    </div>
+                    {teamPlayers.length === 0 ? (
+                      <p className="text-xs mb-2" style={{ color: "var(--pc-muted)" }}>No players yet</p>
+                    ) : (
+                      <ul className="space-y-1 mb-2">
+                        {teamPlayers.map((p) => (
+                          <li key={p.id} className="text-xs flex items-center gap-1">
+                            {pokemonSpriteUrl(p.users?.avatar) && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={pokemonSpriteUrl(p.users?.avatar)!} alt="" width={16} height={16} style={{ imageRendering: "pixelated" }} />
+                            )}
+                            {displayName(p)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {!imOnThisTeam ? (
+                      <button
+                        disabled={isPending}
+                        className="pc-btn pc-btn-ghost"
+                        style={{ padding: "4px 10px", fontSize: "0.75rem", width: "100%" }}
+                        onClick={() => {
+                          startTransition(async () => {
+                            const result = await joinTeam(initialLobby.id, team.id);
+                            if (result?.error) setError(result.error);
+                          });
+                        }}
+                      >
+                        Join
+                      </button>
+                    ) : (
+                      <p className="text-xs font-bold" style={{ color: "var(--pc-red)" }}>← Your team</p>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm font-bold mb-4" style={{ color: "var(--pc-red)" }}>
           {error}
@@ -280,15 +346,27 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
         </button>
       )}
 
-      {joined && isHost && (
+      {joined && isHost && (() => {
+        const teamsUnpopulated =
+          initialLobby.mode === "teams" &&
+          initialLobby.lobby_teams.some(
+            (t) => players.filter((p) => p.team_id === t.id).length < 2
+          );
+        const canStart = players.length >= 2 && !teamsUnpopulated;
+        const startLabel = players.length < 2
+          ? "Need at least 2 players to start"
+          : teamsUnpopulated
+          ? "Each team needs at least 2 players"
+          : "Start game →";
+        return (
         <div className="flex flex-col gap-3">
           <button
             onClick={handleStartGame}
-            disabled={players.length < 2 || isPending}
+            disabled={!canStart || isPending}
             className="pc-btn pc-btn-red pc-btn-block"
             style={{ fontSize: "1.05rem" }}
           >
-            {players.length < 2 ? "Need at least 2 players to start" : "Start game →"}
+            {startLabel}
           </button>
           <button
             disabled={isPending}
@@ -306,7 +384,8 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
             Cancel lobby
           </button>
         </div>
-      )}
+        );
+      })()}
 
       {joined && !isHost && (
         <div className="flex flex-col items-center gap-3">

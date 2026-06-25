@@ -89,6 +89,13 @@ export async function initializeGame(lobbyId: string): Promise<GameError | void>
 
   if (error) return { error: error.message };
 
+  if (mode === "classroom_streamer" && firstPlayerId) {
+    await supabase
+      .from("lobbies")
+      .update({ classroom_clue_giver_player_id: firstPlayerId })
+      .eq("id", lobbyId);
+  }
+
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",

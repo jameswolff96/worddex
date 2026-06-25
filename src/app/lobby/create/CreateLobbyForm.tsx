@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
 import { createLobby } from "../actions";
@@ -15,6 +15,7 @@ export function CreateLobbyForm({ isGuest, categories }: Props) {
     createLobby,
     undefined
   );
+  const [mode, setMode] = useState<"teams" | "solo" | "classroom_streamer">("teams");
   const formRef = useRef<HTMLFormElement>(null);
   const captchaRef = useRef<HCaptcha>(null);
   const anonReady = useRef(false);
@@ -47,7 +48,7 @@ export function CreateLobbyForm({ isGuest, categories }: Props) {
       {/* Mode */}
       <div className="pc-card">
         <h2 className="pc-h2">1. Game mode</h2>
-        <ModeSelector />
+        <ModeSelector value={mode} onChange={setMode} />
       </div>
 
       {/* Categories */}
@@ -62,7 +63,7 @@ export function CreateLobbyForm({ isGuest, categories }: Props) {
       {/* Rules */}
       <div className="pc-card">
         <h2 className="pc-h2">3. Round settings</h2>
-        <RuleSettings />
+        <RuleSettings isTeams={mode === "teams"} />
       </div>
 
       {/* Visibility */}
@@ -98,24 +99,18 @@ export function CreateLobbyForm({ isGuest, categories }: Props) {
   );
 }
 
-function ModeSelector() {
+function ModeSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (m: "teams" | "solo" | "classroom_streamer") => void;
+}) {
   const modes = [
-    {
-      value: "teams",
-      label: "Teams",
-      desc: "Teams take turns. One Clue Master, rest of team guesses.",
-    },
-    {
-      value: "solo",
-      label: "Solo / Free-for-all",
-      desc: "Each player takes a turn clueing. Everyone guesses individually.",
-    },
-    {
-      value: "classroom_streamer",
-      label: "Classroom / Streamer",
-      desc: "One fixed Clue Giver for the whole game. Teams compete simultaneously.",
-    },
-  ];
+    { value: "teams", label: "Teams", desc: "Teams take turns. One Clue Master, rest of team guesses." },
+    { value: "solo", label: "Solo / Free-for-all", desc: "Each player takes a turn clueing. Everyone guesses individually." },
+    { value: "classroom_streamer", label: "Classroom / Streamer", desc: "One fixed Clue Giver for the whole game. Teams compete simultaneously." },
+  ] as const;
 
   return (
     <div className="space-y-2">
@@ -129,7 +124,8 @@ function ModeSelector() {
             type="radio"
             name="mode"
             value={m.value}
-            defaultChecked={m.value === "teams"}
+            checked={value === m.value}
+            onChange={() => onChange(m.value)}
             className="mt-1 accent-[var(--pc-blue)]"
           />
           <div>
@@ -171,42 +167,39 @@ function CategoryPill({ category }: { category: string }) {
   );
 }
 
-function RuleSettings() {
+function RuleSettings({ isTeams }: { isTeams: boolean }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="pc-label">Number of rounds</label>
           <select name="number_of_rounds" defaultValue="3" className="pc-input">
-            {[2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
+            {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
 
         <div>
           <label className="pc-label">Terms per turn</label>
           <select name="terms_per_turn" defaultValue="5" className="pc-input">
-            {[3, 4, 5, 6, 7].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
+            {[3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
 
         <div>
           <label className="pc-label">Word budget</label>
           <select name="word_budget" defaultValue="25" className="pc-input">
-            {[15, 20, 25, 30, 35].map((n) => (
-              <option key={n} value={n}>
-                {n} words
-              </option>
-            ))}
+            {[15, 20, 25, 30, 35].map((n) => <option key={n} value={n}>{n} words</option>)}
           </select>
         </div>
+
+        {isTeams && (
+          <div>
+            <label className="pc-label">Number of teams</label>
+            <select name="number_of_teams" defaultValue="2" className="pc-input">
+              {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} teams</option>)}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="pc-label">Clue Master rotation</label>
@@ -219,12 +212,7 @@ function RuleSettings() {
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
-        <input
-          type="checkbox"
-          name="is_18_plus_mode"
-          value="true"
-          className="accent-[var(--pc-red)]"
-        />
+        <input type="checkbox" name="is_18_plus_mode" value="true" className="accent-[var(--pc-red)]" />
         18+ mode (allow mature language in clues)
       </label>
     </div>

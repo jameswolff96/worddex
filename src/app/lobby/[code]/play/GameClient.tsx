@@ -58,6 +58,7 @@ interface Lobby {
   rules: LobbyRules;
   status: string;
   host_user_id: string;
+  classroom_clue_giver_player_id: string | null;
   lobby_players: Player[];
   lobby_teams: Team[];
 }
@@ -94,6 +95,7 @@ interface Props {
   currentUserId: string | null;
   myPlayerId: string | null;
   wordBank: { term: string; category: string; sprite_ref: string | null }[];
+  classroomClueGiverId: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -116,6 +118,7 @@ export function GameClient({
   currentUserId,
   myPlayerId,
   wordBank,
+  classroomClueGiverId,
 }: Props) {
   const supabase = createClient();
   const router = useRouter();
@@ -136,11 +139,9 @@ export function GameClient({
 
   // Am I the current clue master?
   const isClueMaster =
-    gs?.current_turn_player_id === myPlayerId ||
-    (mode === "classroom_streamer" &&
-      lobby.lobby_players.find(
-        (p) => p.id === lobby.id // TODO: compare classroom_clue_giver_player_id
-      ) != null);
+    mode === "classroom_streamer"
+      ? classroomClueGiverId === myPlayerId
+      : gs?.current_turn_player_id === myPlayerId;
 
   const currentTerm = gs?.current_term as CurrentTerm | null;
   const slots = (gs?.slot_grid ?? []) as SlotCell[];
