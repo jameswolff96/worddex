@@ -202,6 +202,8 @@ export async function endGame(lobbyId: string): Promise<LobbyError | undefined> 
     .update({ phase: "game_over" })
     .eq("lobby_id", lobbyId);
   if (error) return { error: error.message };
+
+  await supabase.from("lobbies").update({ status: "finished" }).eq("id", lobbyId);
 }
 
 export async function abandonGame(
