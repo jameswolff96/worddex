@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { generateDisplayName } from "@/lib/game/nameGenerator";
+import { filterContent } from "@/lib/game/contentFilter";
 
 export type ProfileError = { error: string };
 
@@ -15,6 +16,9 @@ export async function updateDisplayName(
   const displayName = raw || (await generateDisplayName());
 
   if (displayName.length > 32) return { error: "Display name must be 32 characters or fewer" };
+
+  const contentCheck = filterContent(displayName, false);
+  if (contentCheck.blocked) return { error: contentCheck.reason };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,6 +32,24 @@ export async function updateDisplayName(
   const { error } = await supabase
     .from("users")
     .update({ display_name: displayName, discriminator: (disc as unknown) as number })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+}
+
+export async function updateAvatar(
+  dexNumber: string
+): Promise<ProfileError | undefined> {
+  const num = parseInt(dexNumber, 10);
+  if (isNaN(num) || num < 1 || num > 1025) return { error: "Invalid Pokémon" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { error } = await supabase
+    .from("users")
+    .update({ avatar: dexNumber })
     .eq("id", user.id);
 
   if (error) return { error: error.message };

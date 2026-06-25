@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { checkClue, analyzeClueMessage } from "./clueValidation";
+import { filterContent } from "./contentFilter";
 import type {
   LobbyRules,
   SlotCell,
@@ -319,6 +320,9 @@ export async function submitClue(
     .eq("id", lobbyId)
     .single();
   const rules = lobby?.rules as unknown as LobbyRules;
+
+  const contentCheck = filterContent(clueText, rules.is_18_plus_mode);
+  if (contentCheck.blocked) return { error: contentCheck.reason };
 
   const usedWordsSet = new Set<string>(gameState.used_words_this_turn ?? []);
   const { newWords, cost } = analyzeClueMessage(clueText, usedWordsSet);

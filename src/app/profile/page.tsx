@@ -25,6 +25,7 @@ export default async function ProfilePage() {
         displayName={profile.display_name}
         email={profile.email}
         spriteUrl={pokemonSpriteUrl(profile.avatar)}
+        currentAvatar={profile.avatar}
         createdAt={profile.created_at}
       />
     </div>

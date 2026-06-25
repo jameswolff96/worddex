@@ -3,15 +3,17 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateDisplayName, deleteAccount, exportMyData, type ProfileError } from "./actions";
+import { AvatarSelector } from "./AvatarSelector";
 
 interface Props {
   displayName: string;
   email: string | null;
   spriteUrl: string | null;
+  currentAvatar: string | null;
   createdAt: string;
 }
 
-export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Props) {
+export function ProfileClient({ displayName, email, spriteUrl, currentAvatar, createdAt }: Props) {
   const [nameError, nameAction, namePending] = useActionState<ProfileError | undefined, FormData>(
     updateDisplayName,
     undefined
@@ -86,6 +88,9 @@ export function ProfileClient({ displayName, email, spriteUrl, createdAt }: Prop
           </div>
         </div>
       </div>
+
+      {/* ── Avatar selector ── */}
+      <AvatarSelector currentAvatar={currentAvatar} />
 
       {/* ── Change display name ── */}
       <div className="pc-card">
