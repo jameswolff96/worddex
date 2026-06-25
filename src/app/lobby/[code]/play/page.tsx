@@ -42,6 +42,7 @@ interface GameStateData {
   slot_grid: SlotCell[];
   used_words_this_turn: string[];
   used_term_ids: number[];
+  terms_completed_this_turn: number;
   phase: GamePhase;
 }
 
