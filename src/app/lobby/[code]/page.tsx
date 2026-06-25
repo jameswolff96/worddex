@@ -46,7 +46,7 @@ export default async function LobbyPage({ params }: Props) {
   const { data: rawLobby } = await supabase
     .from("lobbies")
     .select(
-      "id, code, mode, visibility, status, rules, host_user_id, lobby_players(id, user_id, guest_name, team_id, connection_status, join_order, score), lobby_teams(id, name, score, turn_order)"
+      "id, code, mode, visibility, status, rules, host_user_id, lobby_players(id, user_id, guest_name, team_id, connection_status, join_order, score, users(id, display_name, discriminator, avatar)), lobby_teams(id, name, score, turn_order)"
     )
     .eq("code", code.toUpperCase())
     .single();

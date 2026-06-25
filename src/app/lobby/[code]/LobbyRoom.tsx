@@ -74,7 +74,7 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
         () => {
           supabase
             .from("lobby_players")
-            .select("id, user_id, guest_name, team_id, connection_status, join_order, score")
+            .select("id, user_id, guest_name, team_id, connection_status, join_order, score, users(id, display_name, discriminator, avatar)")
             .eq("lobby_id", initialLobby.id)
             .order("join_order")
             .then(({ data }) => {
