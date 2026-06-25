@@ -193,6 +193,12 @@ export default async function HomePage() {
           </a>
           {" "}production
         </div>
+        <div className="mt-1">
+          Sprites via{" "}
+          <a href="https://pokeapi.co" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>
+            PokéAPI
+          </a>
+        </div>
       </footer>
     </div>
   );
