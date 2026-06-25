@@ -142,3 +142,30 @@ export async function joinLobby(lobbyId: string): Promise<LobbyError | undefined
 
   return undefined;
 }
+
+export async function kickPlayer(
+  lobbyId: string,
+  playerIdToKick: string
+): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("host_user_id")
+    .eq("id", lobbyId)
+    .single();
+
+  if (!lobby || lobby.host_user_id !== user.id) return { error: "Only the host can kick players" };
+
+  const { error } = await supabase
+    .from("lobby_players")
+    .delete()
+    .eq("id", playerIdToKick)
+    .eq("lobby_id", lobbyId);
+
+  if (error) return { error: error.message };
+  return undefined;
+}

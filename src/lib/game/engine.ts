@@ -454,11 +454,16 @@ export async function submitGuess(
     }
 
     const rules = lobby?.rules as unknown as LobbyRules;
-    if (
-      mode === "classroom_streamer" &&
-      rules.classroom_scoring_mode === "first_correct"
-    ) {
+    if (mode === "classroom_streamer" && rules.classroom_scoring_mode === "first_correct") {
       await advanceToNextTerm(lobbyId, gameState);
+    } else {
+      await supabase.from("chat_messages").insert({
+        lobby_id: lobbyId,
+        kind: "system",
+        content: "✓ Correct! Turn ends in 10 seconds.",
+        metadata: { countdown: true },
+      });
+      await supabase.from("game_state").update({ phase: "correct_guess" }).eq("lobby_id", lobbyId);
     }
   }
 

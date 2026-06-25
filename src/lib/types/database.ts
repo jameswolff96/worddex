@@ -303,6 +303,7 @@ export type GamePhase =
   | "waiting"
   | "turn_start"
   | "clueing"
+  | "correct_guess"
   | "turn_end"
   | "round_end"
   | "game_over";

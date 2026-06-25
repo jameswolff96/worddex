@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
-import { joinLobby, startGame } from "../actions";
+import { joinLobby, startGame, kickPlayer } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
 
 interface Player {
@@ -182,17 +182,40 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                       </span>
                     )}
                   </span>
-                  <span
-                    className="text-xs"
-                    style={{
-                      color:
-                        p.connection_status === "connected"
-                          ? "var(--pc-green)"
-                          : "var(--pc-muted)",
-                    }}
-                  >
-                    {p.connection_status === "connected" ? "● online" : "○ away"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs"
+                      style={{
+                        color:
+                          p.connection_status === "connected"
+                            ? "var(--pc-green)"
+                            : "var(--pc-muted)",
+                      }}
+                    >
+                      {p.connection_status === "connected" ? "● online" : "○ away"}
+                    </span>
+                    {isHost && p.user_id !== initialLobby.host_user_id && (
+                      <button
+                        onClick={() => {
+                          startTransition(async () => {
+                            const result = await kickPlayer(initialLobby.id, p.id);
+                            if (result?.error) setError(result.error);
+                          });
+                        }}
+                        disabled={isPending}
+                        className="text-xs font-bold px-2 py-0.5 rounded"
+                        style={{
+                          border: "1.5px solid var(--pc-red)",
+                          color: "var(--pc-red)",
+                          background: "transparent",
+                          cursor: "pointer",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        kick
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
           </ul>

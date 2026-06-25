@@ -9,7 +9,6 @@ import {
   skipTerm,
   forcedSkip,
   endTurn,
-  startTurn,
   advanceTurn,
 } from "@/lib/game/engine";
 import type {
@@ -118,11 +117,12 @@ export function GameClient({
   const [clueInput, setClueInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [countdown, setCountdown] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const countdownTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const rules = lobby.rules;
   const mode = lobby.mode;
-  const myPlayer = players.find((p) => p.id === myPlayerId) ?? null;
 
   // Am I the current clue master?
   const isClueMaster =
@@ -194,6 +194,46 @@ export function GameClient({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
+  // 10-second countdown after a correct guess
+  useEffect(() => {
+    if (gs?.phase !== "correct_guess") {
+      setCountdown(null);
+      countdownTimers.current.forEach(clearTimeout);
+      countdownTimers.current = [];
+      return;
+    }
+
+    setCountdown(10);
+
+    const interval = setInterval(() => {
+      setCountdown((c) => (c !== null && c > 1 ? c - 1 : null));
+    }, 1000);
+
+    const isActiveClueMaster = gs.current_turn_player_id === myPlayerId;
+    if (isActiveClueMaster) {
+      const t5 = setTimeout(async () => {
+        await supabase.from("chat_messages").insert({
+          lobby_id: lobby.id,
+          kind: "system",
+          content: "⏱ 5 seconds remaining…",
+          metadata: {},
+        });
+      }, 5000);
+
+      const t0 = setTimeout(async () => {
+        await endTurn(lobby.id);
+      }, 10000);
+
+      countdownTimers.current = [t5, t0];
+    }
+
+    return () => {
+      clearInterval(interval);
+      countdownTimers.current.forEach(clearTimeout);
+      countdownTimers.current = [];
+    };
+  }, [gs?.phase, gs?.current_turn_player_id, myPlayerId, lobby.id]);
+
   // ── Word analysis for live counter ──
   const tokens = clueInput.trim().split(/\s+/).filter(Boolean);
   const newTokens = tokens.filter((t) => !usedWords.has(t.toLowerCase()));
@@ -252,14 +292,6 @@ export function GameClient({
     setError(null);
     startTransition(async () => {
       const result = await forcedSkip(lobby.id, myPlayerId);
-      if (result?.error) setError(result.error);
-    });
-  }
-
-  function handleEndTurn() {
-    setError(null);
-    startTransition(async () => {
-      const result = await endTurn(lobby.id);
       if (result?.error) setError(result.error);
     });
   }
@@ -524,21 +556,31 @@ export function GameClient({
                     Skip (free)
                   </button>
                 )}
-                <button
-                  onClick={handleEndTurn}
-                  disabled={isPending}
-                  className="pc-btn pc-btn-ghost"
-                  style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                >
-                  End turn
-                </button>
               </div>
             </div>
           )}
         </div>
 
+        {/* Correct-guess countdown banner */}
+        {countdown !== null && (
+          <div
+            style={{
+              textAlign: "center",
+              fontWeight: 700,
+              fontSize: "1rem",
+              padding: "10px",
+              borderRadius: 10,
+              border: "2px solid var(--pc-ink)",
+              background: "var(--pc-input-bg)",
+              color: countdown <= 3 ? "var(--pc-red)" : "var(--pc-yellow)",
+            }}
+          >
+            Turn ends in {countdown}s
+          </div>
+        )}
+
         {/* Budget display for non-clue-masters */}
-        {!isClueMaster && (
+        {!isClueMaster && countdown === null && (
           <div
             style={{
               display: "flex",
@@ -603,7 +645,11 @@ export function GameClient({
             </p>
           )}
 
-          {isClueMaster ? (
+          {countdown !== null ? (
+            <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--pc-muted)" }}>
+              Waiting for the turn to end…
+            </p>
+          ) : isClueMaster ? (
             <>
               <div style={{ display: "flex", gap: 6 }}>
                 <input
