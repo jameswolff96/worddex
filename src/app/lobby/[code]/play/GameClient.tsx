@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   submitClue,
@@ -11,6 +12,7 @@ import {
   endTurn,
   advanceTurn,
 } from "@/lib/game/engine";
+import { endGame, abandonGame } from "@/app/lobby/actions";
 import type {
   LobbyRules,
   SlotCell,
@@ -112,6 +114,7 @@ export function GameClient({
   myPlayerId,
 }: Props) {
   const supabase = createClient();
+  const router = useRouter();
   const [gs, setGs] = useState<GameState | null>(initialGameState);
   const [chat, setChat] = useState<ChatMessage[]>(initialChat);
   const [players, setPlayers] = useState(lobby.lobby_players);
@@ -125,6 +128,7 @@ export function GameClient({
 
   const rules = lobby.rules;
   const mode = lobby.mode;
+  const isHost = currentUserId === lobby.host_user_id;
 
   // Am I the current clue master?
   const isClueMaster =
@@ -298,6 +302,24 @@ export function GameClient({
     });
   }
 
+  function handleEndGame() {
+    if (!confirm("End the game for everyone?")) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await endGame(lobby.id);
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  function handleAbandon() {
+    if (!myPlayerId) return;
+    if (!confirm("Leave this game? You won't be able to rejoin.")) return;
+    startTransition(async () => {
+      await abandonGame(lobby.id, myPlayerId);
+      router.push("/");
+    });
+  }
+
   // Compute which display names appear more than once so we only show
   // the discriminator when it's actually needed to tell players apart.
   const nameCount = new Map<string, number>();
@@ -356,7 +378,6 @@ export function GameClient({
   }
 
   if (gs.phase === "turn_end") {
-    const isHost = currentUserId === lobby.host_user_id;
     return (
       <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
         <Brandbar />
@@ -375,21 +396,31 @@ export function GameClient({
           </ul>
           {error && <p className="text-sm font-bold mb-3" style={{ color: "var(--pc-red)" }}>{error}</p>}
           {isHost ? (
-            <button
-              disabled={isPending}
-              className="pc-btn pc-btn-red"
-              onClick={() => {
-                setError(null);
-                startTransition(async () => {
-                  const result = await advanceTurn(lobby.id);
-                  if (result?.error) setError(result.error);
-                });
-              }}
-            >
-              {isPending ? "Starting…" : "Next turn →"}
-            </button>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <button
+                disabled={isPending}
+                className="pc-btn pc-btn-red"
+                onClick={() => {
+                  setError(null);
+                  startTransition(async () => {
+                    const result = await advanceTurn(lobby.id);
+                    if (result?.error) setError(result.error);
+                  });
+                }}
+              >
+                {isPending ? "Starting…" : "Next turn →"}
+              </button>
+              <button disabled={isPending} className="pc-btn pc-btn-ghost" onClick={handleEndGame}>
+                End game
+              </button>
+            </div>
           ) : (
-            <p style={{ color: "var(--pc-muted)" }}>Waiting for the host to start the next turn…</p>
+            <div className="flex flex-col items-center gap-3">
+              <p style={{ color: "var(--pc-muted)" }}>Waiting for the host to start the next turn…</p>
+              <button disabled={isPending} className="pc-btn pc-btn-ghost" onClick={handleAbandon}>
+                Leave game
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -417,6 +448,12 @@ export function GameClient({
                 </li>
               ))}
           </ul>
+          <button
+            className="pc-btn pc-btn-red mt-5"
+            onClick={() => router.push("/")}
+          >
+            Back to home
+          </button>
         </div>
       </div>
     );
@@ -461,6 +498,25 @@ export function GameClient({
           <span style={{ fontSize: "0.75rem", color: "var(--pc-muted)", whiteSpace: "nowrap" }}>
             Round {gs.current_round} / {rules.number_of_rounds}
           </span>
+          {isHost ? (
+            <button
+              disabled={isPending}
+              className="pc-btn pc-btn-ghost"
+              style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+              onClick={handleEndGame}
+            >
+              End game
+            </button>
+          ) : (
+            <button
+              disabled={isPending}
+              className="pc-btn pc-btn-ghost"
+              style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+              onClick={handleAbandon}
+            >
+              Leave
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </div>

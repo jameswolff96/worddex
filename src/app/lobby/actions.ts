@@ -176,3 +176,48 @@ export async function kickPlayer(
   if (error) return { error: error.message };
   return undefined;
 }
+
+export async function endGame(lobbyId: string): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: lobby } = await supabase
+    .from("lobbies")
+    .select("host_user_id")
+    .eq("id", lobbyId)
+    .single();
+  if (!lobby || lobby.host_user_id !== user.id) return { error: "Only the host can end the game" };
+
+  await supabase.from("chat_messages").insert({
+    lobby_id: lobbyId,
+    kind: "system",
+    content: "🛑 The host ended the game.",
+    metadata: {},
+  });
+
+  const { error } = await supabase
+    .from("game_state")
+    .update({ phase: "game_over" })
+    .eq("lobby_id", lobbyId);
+  if (error) return { error: error.message };
+}
+
+export async function abandonGame(
+  lobbyId: string,
+  playerId: string
+): Promise<LobbyError | undefined> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { error } = await supabase
+    .from("lobby_players")
+    .delete()
+    .eq("id", playerId)
+    .eq("lobby_id", lobbyId)
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+}
