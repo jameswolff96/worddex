@@ -24,10 +24,7 @@ begin
       new.email,
       v_display_name,
       v_disc,
-      coalesce(
-        new.raw_user_meta_data->>'avatar_url',
-        new.raw_user_meta_data->>'picture'
-      )
+      (floor(random() * 151) + 1)::text
     )
     on conflict (id) do nothing;
 

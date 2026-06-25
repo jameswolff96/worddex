@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Brandbar } from "@/components/Brandbar";
 import { JoinByCodeClient } from "@/components/JoinByCodeClient";
 import type { LobbyRow, LobbyRules } from "@/lib/types/database";
+import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -43,14 +44,14 @@ export default async function HomePage() {
               className="pc-btn pc-btn-ghost"
               style={{ fontSize: "0.85rem", padding: "6px 12px", display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
-              {profile?.avatar ? (
+              {pokemonSpriteUrl(profile?.avatar) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profile.avatar}
+                  src={pokemonSpriteUrl(profile?.avatar)!}
                   alt=""
-                  width={24}
-                  height={24}
-                  style={{ borderRadius: "50%", border: "2px solid var(--pc-ink)", flexShrink: 0 }}
+                  width={28}
+                  height={28}
+                  style={{ imageRendering: "pixelated", flexShrink: 0 }}
                 />
               ) : (
                 <div className="pokeball" style={{ width: 24, height: 24, flexShrink: 0 }} />

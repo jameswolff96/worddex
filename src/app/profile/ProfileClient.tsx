@@ -7,10 +7,11 @@ interface Props {
   displayName: string;
   discriminator: number;
   email: string | null;
+  spriteUrl: string | null;
   createdAt: string;
 }
 
-export function ProfileClient({ displayName, discriminator, email, createdAt }: Props) {
+export function ProfileClient({ displayName, discriminator, email, spriteUrl, createdAt }: Props) {
   const [nameError, nameAction, namePending] = useActionState<ProfileError | undefined, FormData>(
     updateDisplayName,
     undefined
@@ -32,24 +33,27 @@ export function ProfileClient({ displayName, discriminator, email, createdAt }: 
       {/* ── Identity ── */}
       <div className="pc-card">
         <h2 className="pc-h2">Your identity</h2>
-        <div className="space-y-1 text-sm mb-1">
-          <p>
-            <span style={{ color: "var(--pc-muted)" }}>Display name </span>
-            <strong style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
-              {displayName}
-              <span style={{ color: "var(--pc-muted)", fontWeight: 400 }}>#{discriminator}</span>
-            </strong>
-          </p>
-          {email && (
-            <p>
-              <span style={{ color: "var(--pc-muted)" }}>Email </span>
-              <strong>{email}</strong>
-            </p>
+        <div className="flex items-center gap-4 mb-3">
+          {spriteUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={spriteUrl}
+              alt={displayName}
+              width={72}
+              height={72}
+              style={{ imageRendering: "pixelated", flexShrink: 0 }}
+            />
+          ) : (
+            <div className="pokeball" style={{ width: 56, height: 56, flexShrink: 0 }} />
           )}
-          <p>
-            <span style={{ color: "var(--pc-muted)" }}>Joined </span>
-            <strong>{joined}</strong>
-          </p>
+          <div>
+            <div className="font-bold text-lg" style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
+              {displayName}
+              <span className="text-sm font-normal" style={{ color: "var(--pc-muted)" }}>#{discriminator}</span>
+            </div>
+            {email && <div className="text-sm" style={{ color: "var(--pc-muted)" }}>{email}</div>}
+            <div className="text-xs mt-1" style={{ color: "var(--pc-muted)" }}>Joined {joined}</div>
+          </div>
         </div>
       </div>
 

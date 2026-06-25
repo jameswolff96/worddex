@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Brandbar } from "@/components/Brandbar";
 import { ProfileClient } from "./ProfileClient";
+import { pokemonSpriteUrl } from "@/lib/game/sprites";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("display_name, discriminator, email, created_at")
+    .select("display_name, discriminator, email, avatar, created_at")
     .eq("id", user.id)
     .single();
 
@@ -24,6 +25,7 @@ export default async function ProfilePage() {
         displayName={profile.display_name}
         discriminator={profile.discriminator}
         email={profile.email}
+        spriteUrl={pokemonSpriteUrl(profile.avatar)}
         createdAt={profile.created_at}
       />
     </div>
