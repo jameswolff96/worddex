@@ -11,6 +11,14 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = user
+    ? await supabase
+        .from("users")
+        .select("display_name, discriminator, avatar")
+        .eq("id", user.id)
+        .single()
+    : { data: null };
+
   const { data: openLobbies } = await supabase
     .from("lobbies")
     .select("id, code, mode, rules, status, created_at")
@@ -33,9 +41,24 @@ export default async function HomePage() {
             <Link
               href="/profile"
               className="pc-btn pc-btn-ghost"
-              style={{ fontSize: "0.85rem", padding: "8px 14px" }}
+              style={{ fontSize: "0.85rem", padding: "6px 12px", display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
-              Profile
+              {profile?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar}
+                  alt=""
+                  width={24}
+                  height={24}
+                  style={{ borderRadius: "50%", border: "2px solid var(--pc-ink)", flexShrink: 0 }}
+                />
+              ) : (
+                <div className="pokeball" style={{ width: 24, height: 24, flexShrink: 0 }} />
+              )}
+              <span>
+                {profile?.display_name ?? "Profile"}
+                {profile && <span style={{ color: "var(--pc-muted)", fontWeight: 400 }}>#{profile.discriminator}</span>}
+              </span>
             </Link>
             <form action="/api/auth/signout" method="post">
               <button
