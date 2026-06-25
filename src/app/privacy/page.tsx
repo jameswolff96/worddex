@@ -109,6 +109,15 @@ export default function PrivacyPage() {
               hCaptcha Privacy Policy
             </a>
           </li>
+          <li>
+            <strong>Vercel Analytics &amp; Speed Insights</strong> — we use these tools to understand how WordDex is used
+            and how fast it loads. They collect aggregated, anonymised data including country, device type, browser,
+            referrer, and page load performance metrics (Core Web Vitals). This data does not identify individual users
+            and is not used for advertising purposes.{" "}
+            <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>
+              Vercel Privacy Policy
+            </a>
+          </li>
         </ul>
         <p className="text-sm mt-3" style={{ color: "var(--pc-muted)" }}>
           These services may collect your IP address and basic usage data per their own policies.
