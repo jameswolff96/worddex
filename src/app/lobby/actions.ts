@@ -101,6 +101,13 @@ export async function startGame(lobbyId: string): Promise<LobbyError | undefined
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
+  const { count } = await supabase
+    .from("lobby_players")
+    .select("id", { count: "exact", head: true })
+    .eq("lobby_id", lobbyId);
+
+  if (!count || count < 2) return { error: "Need at least 2 players to start" };
+
   const { error: updateError } = await supabase
     .from("lobbies")
     .update({ status: "playing" })

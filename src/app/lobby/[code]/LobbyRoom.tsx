@@ -81,7 +81,13 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
             .eq("lobby_id", initialLobby.id)
             .order("join_order")
             .then(({ data }) => {
-              if (data) setPlayers(data as unknown as Player[]);
+              if (!data) return;
+              setPlayers(data as unknown as Player[]);
+              // Detect if the current user was kicked
+              if (currentUserId) {
+                const stillInLobby = data.some((p) => p.user_id === currentUserId);
+                if (!stillInLobby) router.push("/");
+              }
             });
         }
       )
@@ -212,7 +218,7 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                           lineHeight: 1.4,
                         }}
                       >
-                        kick
+                        Kick
                       </button>
                     )}
                   </div>
