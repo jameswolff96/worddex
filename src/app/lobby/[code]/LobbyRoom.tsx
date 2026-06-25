@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
 import { joinLobby, startGame } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
@@ -59,6 +60,8 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const isHost = currentUserId === initialLobby.host_user_id;
+  const captchaRef = useRef<HCaptcha>(null);
+  const isGuest = !currentUserId;
 
   useEffect(() => {
     const channel = supabase
@@ -103,15 +106,33 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
     };
   }, [initialLobby.id, initialLobby.code]);
 
-  function handleJoin() {
+  async function doJoin() {
     startTransition(async () => {
-      const result = await joinLobby(initialLobby.id, !currentUserId);
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        setJoined(true);
-      }
+      const result = await joinLobby(initialLobby.id);
+      if (result?.error) setError(result.error);
+      else setJoined(true);
     });
+  }
+
+  function handleJoin() {
+    if (isGuest) {
+      // Guest: execute captcha first; doJoin is called from onCaptchaVerify
+      captchaRef.current?.execute();
+    } else {
+      doJoin();
+    }
+  }
+
+  async function onCaptchaVerify(token: string) {
+    const supabase = createClient();
+    const { error: anonError } = await supabase.auth.signInAnonymously({
+      options: { captchaToken: token },
+    });
+    if (anonError) {
+      setError("Failed to create guest session");
+      return;
+    }
+    doJoin();
   }
 
   async function handleStartGame() {
@@ -182,6 +203,16 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
         <p className="text-sm font-bold mb-4" style={{ color: "var(--pc-red)" }}>
           {error}
         </p>
+      )}
+
+      {isGuest && (
+        <HCaptcha
+          ref={captchaRef}
+          sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
+          size="invisible"
+          onVerify={onCaptchaVerify}
+          onError={() => setError("Captcha failed — please try again")}
+        />
       )}
 
       {!joined && (

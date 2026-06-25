@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { generateDisplayName } from "@/lib/game/nameGenerator";
 import { initializeGame } from "@/lib/game/engine";
 import type { LobbyRules } from "@/lib/types/database";
 
@@ -114,61 +113,32 @@ export async function startGame(lobbyId: string): Promise<LobbyError | undefined
   if (initError) return initError;
 }
 
-export async function joinLobby(
-  lobbyId: string,
-  isGuest: boolean
-): Promise<LobbyError | undefined> {
+export async function joinLobby(lobbyId: string): Promise<LobbyError | undefined> {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
 
   const { count } = await supabase
     .from("lobby_players")
     .select("id", { count: "exact", head: true })
     .eq("lobby_id", lobbyId);
 
-  if (user && !isGuest) {
-    const { data: existing } = await supabase
-      .from("lobby_players")
-      .select("id")
-      .eq("lobby_id", lobbyId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const { data: existing } = await supabase
+    .from("lobby_players")
+    .select("id")
+    .eq("lobby_id", lobbyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-    if (existing) return undefined; // already joined
+  if (existing) return undefined;
 
-    const { error } = await supabase.from("lobby_players").insert({
-      lobby_id: lobbyId,
-      user_id: user.id,
-      join_order: count ?? 0,
-    });
-    if (error) return { error: error.message };
-  } else {
-    let guestName = await generateDisplayName();
-    const { data: names } = await supabase
-      .from("lobby_players")
-      .select("guest_name")
-      .eq("lobby_id", lobbyId);
-
-    const taken = new Set(
-      (names ?? []).map((p) => p.guest_name).filter(Boolean) as string[]
-    );
-
-    let attempts = 0;
-    while (taken.has(guestName) && attempts < 10) {
-      guestName = await generateDisplayName();
-      attempts++;
-    }
-
-    const { error } = await supabase.from("lobby_players").insert({
-      lobby_id: lobbyId,
-      guest_name: guestName,
-      join_order: count ?? 0,
-    });
-    if (error) return { error: error.message };
-  }
+  const { error } = await supabase.from("lobby_players").insert({
+    lobby_id: lobbyId,
+    user_id: user.id,
+    join_order: count ?? 0,
+  });
+  if (error) return { error: error.message };
 
   return undefined;
 }
