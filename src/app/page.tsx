@@ -16,7 +16,7 @@ export default async function HomePage() {
   const { data: profile } = user
     ? await supabase
         .from("users")
-        .select("display_name, discriminator, avatar")
+        .select("display_name, avatar")
         .eq("id", user.id)
         .single()
     : { data: null };
@@ -72,7 +72,6 @@ export default async function HomePage() {
               )}
               <span>
                 {profile?.display_name ?? "Profile"}
-                {profile && <span style={{ color: "var(--pc-muted)", fontWeight: 400 }}>#{profile.discriminator}</span>}
               </span>
             </Link>
             <form action="/api/auth/signout" method="post">
