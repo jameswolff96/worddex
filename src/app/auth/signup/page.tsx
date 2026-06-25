@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signUp } from "../actions";
 import { Brandbar } from "@/components/Brandbar";
+import { OAuthButtons } from "@/components/OAuthButtons";
 
 export default function SignupPage() {
   const [error, action, pending] = useActionState<{ error: string } | undefined, FormData>(signUp, undefined);
@@ -69,6 +70,8 @@ export default function SignupPage() {
             {pending ? "Creating account…" : "Create account →"}
           </button>
         </form>
+
+        <OAuthButtons />
 
         <p className="mt-4 text-sm" style={{ color: "var(--pc-muted)" }}>
           Already have an account?{" "}

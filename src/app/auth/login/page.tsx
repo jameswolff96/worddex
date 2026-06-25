@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signIn } from "../actions";
 import { Brandbar } from "@/components/Brandbar";
+import { OAuthButtons } from "@/components/OAuthButtons";
 
 export default function LoginPage() {
   const [error, action, pending] = useActionState<{ error: string } | undefined, FormData>(signIn, undefined);
@@ -53,6 +54,8 @@ export default function LoginPage() {
             {pending ? "Signing in…" : "Sign in →"}
           </button>
         </form>
+
+        <OAuthButtons />
 
         <p className="mt-4 text-sm" style={{ color: "var(--pc-muted)" }}>
           No account?{" "}
