@@ -7,14 +7,6 @@ import type { LobbyRules } from "@/lib/types/database";
 
 export type LobbyError = { error: string };
 
-const ALL_CATEGORIES = [
-  "Pokémon",
-  "Items",
-  "Gym Leaders",
-  "Games",
-  "Towns & Cities",
-  "Routes & Areas",
-];
 
 export async function createLobby(
   _prev: LobbyError | undefined,
@@ -41,12 +33,13 @@ export async function createLobby(
     | "public"
     | "private";
   const categories = formData.getAll("categories") as string[];
+  if (categories.length === 0) return { error: "Please select at least one category." };
 
   const rules: LobbyRules = {
     number_of_rounds: Number(formData.get("number_of_rounds")) || 3,
     terms_per_turn: Number(formData.get("terms_per_turn")) || 5,
     word_budget: Number(formData.get("word_budget")) || 25,
-    categories: categories.length > 0 ? categories : ALL_CATEGORIES,
+    categories,
     is_18_plus_mode: formData.get("is_18_plus_mode") === "true",
     clue_master_rotation:
       (formData.get(

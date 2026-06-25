@@ -5,20 +5,12 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
 import { createLobby } from "../actions";
 
-const ALL_CATEGORIES = [
-  "Pokémon",
-  "Items",
-  "Gym Leaders",
-  "Games",
-  "Towns & Cities",
-  "Routes & Areas",
-];
-
 interface Props {
   isGuest: boolean;
+  categories: string[];
 }
 
-export function CreateLobbyForm({ isGuest }: Props) {
+export function CreateLobbyForm({ isGuest, categories }: Props) {
   const [error, action, pending] = useActionState<{ error: string } | undefined, FormData>(
     createLobby,
     undefined
@@ -64,7 +56,7 @@ export function CreateLobbyForm({ isGuest }: Props) {
         <p className="text-sm mb-3" style={{ color: "var(--pc-muted)" }}>
           Toggle which categories can appear as secret terms.
         </p>
-        <CategoryToggles />
+        <CategoryToggles categories={categories} />
       </div>
 
       {/* Rules */}
@@ -154,10 +146,10 @@ function ModeSelector() {
   );
 }
 
-function CategoryToggles() {
+function CategoryToggles({ categories }: { categories: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {ALL_CATEGORIES.map((cat) => (
+      {categories.map((cat) => (
         <CategoryPill key={cat} category={cat} />
       ))}
     </div>
