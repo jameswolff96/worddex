@@ -111,6 +111,7 @@ body {
   transition: background 0.2s ease;
 }
 .pc-pill-active { background: var(--pc-green); color: #fff; }
+label:has(:checked) .pc-pill { background: var(--pc-green); color: #fff; }
 
 .pc-label {
   display: block;

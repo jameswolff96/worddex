@@ -136,9 +136,9 @@ function CategoryPill({ category }: { category: string }) {
         name="categories"
         value={category}
         defaultChecked
-        className="sr-only peer"
+        className="sr-only"
       />
-      <span className="pc-pill peer-checked:pc-pill-active">{category}</span>
+      <span className="pc-pill">{category}</span>
     </label>
   );
 }
