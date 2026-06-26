@@ -739,9 +739,8 @@ export function GameClient({
           }}
         >
           {chat.map((msg) => {
-            const guessTerm = (msg.metadata as { term?: string }).term;
-            const spriteUrl = guessTerm
-              ? pokemonSpriteUrl(termSpriteMap.get(guessTerm) ?? null)
+            const spriteUrl = msg.kind === "guess"
+              ? pokemonSpriteUrl(termSpriteMap.get(msg.content) ?? null)
               : null;
             return <ChatLine key={msg.id} msg={msg} sender={senderName(msg)} spriteUrl={spriteUrl} />;
           })}
@@ -983,7 +982,7 @@ function ChatLine({ msg, sender, spriteUrl }: { msg: ChatMessage; sender: string
       </span>
       {spriteUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={spriteUrl} alt="" width={20} height={20} style={{ imageRendering: "pixelated" }} />
+        <img src={spriteUrl} alt="" width={36} height={36} style={{ imageRendering: "pixelated", flexShrink: 0 }} />
       )}
       {msg.content}
     </div>
