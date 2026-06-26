@@ -118,7 +118,10 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
     startTransition(async () => {
       const result = await joinLobby(initialLobby.id);
       if (result?.error) setError(result.error);
-      else setJoined(true);
+      else {
+        setJoined(true);
+        router.refresh();
+      }
     });
   }
 
