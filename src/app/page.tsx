@@ -176,17 +176,17 @@ export default async function HomePage() {
       >
         <div>WordDex &middot; Not affiliated with Nintendo / Game Freak</div>
         <div className="mt-1 flex justify-center gap-3">
-          <Link href="/privacy" style={{ color: "var(--pc-muted)" }}>Privacy Policy</Link>
+          <Link href="/privacy" style={{ color: "var(--pc-blue)" }}>Privacy Policy</Link>
           <span>&middot;</span>
-          <Link href="/terms" style={{ color: "var(--pc-muted)" }}>Terms of Service</Link>
+          <Link href="/terms" style={{ color: "var(--pc-blue)" }}>Terms of Service</Link>
           <span>&middot;</span>
-          <a href="https://pokeapi.co" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>Sprites via PokéAPI</a>
+          <a href="https://pokeapi.co" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>Sprites via PokéAPI</a>
         </div>
         <div className="mt-1">
           Inspired by{" "}
-          <a href="https://discord.gg/5fdHNjPTTy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>Zane Games</a>
+          <a href="https://discord.gg/5fdHNjPTTy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>Zane Games</a>
           {" "}&middot; A{" "}
-          <a href="https://discord.gg/fEJjGJPzCB" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-muted)" }}>Degenerate Games</a>
+          <a href="https://discord.gg/fEJjGJPzCB" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pc-blue)" }}>Degenerate Games</a>
           {" "}production
         </div>
       </footer>
