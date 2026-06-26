@@ -108,7 +108,7 @@ function ModeSelector({
 }) {
   const modes = [
     { value: "teams", label: "Teams", desc: "Teams take turns. One Clue Master, rest of team guesses." },
-    { value: "solo", label: "Solo / Free-for-all", desc: "Each player takes a turn clueing. Everyone guesses individually." },
+    { value: "solo", label: "Free-for-all", desc: "Each player takes a turn clueing. Everyone guesses individually." },
     { value: "classroom_streamer", label: "Classroom / Streamer", desc: "One fixed Clue Giver for the whole game. Teams compete simultaneously." },
   ] as const;
 
