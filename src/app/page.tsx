@@ -109,7 +109,7 @@ export default async function HomePage() {
               const rules = lobby.rules as LobbyRules;
               const modeLabel: Record<string, string> = {
                 teams: "Teams",
-                solo: "Solo / FFA",
+                solo: "Free-for-all",
                 classroom_streamer: "Classroom",
               };
               const href = lobby.status === "playing"

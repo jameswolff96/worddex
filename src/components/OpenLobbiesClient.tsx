@@ -77,7 +77,7 @@ export function OpenLobbiesClient({ initialLobbies }: Props) {
         const rules = lobby.rules as LobbyRules;
         const modeLabel: Record<string, string> = {
           teams: "Teams",
-          solo: "Solo / FFA",
+          solo: "Free-for-all",
           classroom_streamer: "Classroom",
         };
         return (

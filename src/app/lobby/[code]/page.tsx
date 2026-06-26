@@ -83,7 +83,7 @@ export default async function LobbyPage({ params }: Props) {
             <p className="text-xs" style={{ color: "var(--pc-muted)" }}>
               {rules.number_of_rounds}R · {rules.terms_per_turn} terms ·{" "}
               {rules.word_budget} words ·{" "}
-              {{ teams: "Teams", solo: "Solo / FFA", classroom_streamer: "Classroom" }[lobby.mode] ?? lobby.mode}
+              {{ teams: "Teams", solo: "Free-for-all", classroom_streamer: "Classroom" }[lobby.mode] ?? lobby.mode}
             </p>
           </div>
           <div
