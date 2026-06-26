@@ -62,6 +62,7 @@ Fill in the values in `.env.local`:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API → Project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API → Publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → Service role key (**keep secret**) |
 | `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` | hCaptcha dashboard → Sites → Site key |
 
 ### 4. Run database migrations
