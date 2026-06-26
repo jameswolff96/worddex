@@ -116,7 +116,7 @@ The workflow in `.github/workflows/scheduled-cleanup.yml` calls the Edge Functio
 | Secret | Value |
 |---|---|
 | `SUPABASE_URL` | Same as `NEXT_PUBLIC_SUPABASE_URL` |
-| `SUPABASE_ANON_KEY` | Same as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| `SUPABASE_ANON_KEY` | Supabase → Settings → API → **Anon key** (distinct from the publishable key) |
 
 Alternatively, invoke the function on any schedule you prefer, or set up a cron job via [Supabase's built-in scheduler](https://supabase.com/docs/guides/functions/schedule-functions).
 
