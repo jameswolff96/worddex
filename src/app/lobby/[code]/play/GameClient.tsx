@@ -395,6 +395,11 @@ export function GameClient({
     return wordBank.filter((t) => t.term.toLowerCase().includes(q)).slice(0, 8);
   }, [guessInput, wordBank]);
 
+  // Auto-select the first suggestion so Enter always submits the top match
+  useEffect(() => {
+    setSelectedIdx(suggestions.length > 0 ? 0 : -1);
+  }, [suggestions]);
+
   const termSpriteMap = useMemo(
     () => new Map(wordBank.map((t) => [t.term, t.sprite_ref])),
     [wordBank]
@@ -905,7 +910,6 @@ export function GameClient({
                   onChange={(e) => {
                     setGuessInput(e.target.value);
                     setShowSuggestions(true);
-                    setSelectedIdx(-1);
                   }}
                   onKeyDown={(e) => {
                     if (showSuggestions && suggestions.length > 0) {
