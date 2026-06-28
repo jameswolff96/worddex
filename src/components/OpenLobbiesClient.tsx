@@ -109,10 +109,10 @@ export function OpenLobbiesClient({ initialLobbies }: Props) {
             </div>
             <Link
               href={`/lobby/${lobby.code}`}
-              className="pc-btn pc-btn-green"
+              className="pc-btn pc-btn-ghost"
               style={{ fontSize: "0.85rem", padding: "6px 14px" }}
             >
-              Join
+              View
             </Link>
           </li>
         );
