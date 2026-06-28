@@ -554,6 +554,8 @@ export async function rerollTerm(lobbyId: string): Promise<GameError | void> {
 
   if (gameState.phase !== "clueing") return { error: "Not in clueing phase" };
 
+  const currentTerm = gameState.current_term as unknown as CurrentTerm | null;
+
   const { data: lobby } = await supabase
     .from("lobbies")
     .select("rules")
@@ -602,7 +604,9 @@ export async function rerollTerm(lobbyId: string): Promise<GameError | void> {
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
-    content: "The Clue Master rerolled to a new term.",
+    content: currentTerm
+      ? `The Clue Master rerolled away from ${currentTerm.term}.`
+      : "The Clue Master rerolled to a new term.",
   });
 }
 
