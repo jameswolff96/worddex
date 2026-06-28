@@ -193,7 +193,11 @@ export function GameClient({
           setTeams((prev) => prev.map((t) => t.id === updated.id ? { ...t, score: updated.score } : t));
         }
       )
-      .subscribe();
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && myPlayerId) {
+          await channel.track({ player_id: myPlayerId });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

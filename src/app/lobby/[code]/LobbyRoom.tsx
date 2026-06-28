@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { joinLobby, startGame, kickPlayer, abandonGame, cancelLobby, joinTeam } from "../actions";
 import type { LobbyRules } from "@/lib/types/database";
 import { pokemonSpriteUrl } from "@/lib/game/sprites";
@@ -63,7 +64,10 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
   const isHost = currentUserId === initialLobby.host_user_id;
   const myPlayerId = players.find((p) => p.user_id === currentUserId)?.id ?? null;
   const captchaRef = useRef<HCaptcha>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const isGuest = !currentUserId;
+
+  const [onlinePlayerIds, setOnlinePlayerIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const channel = supabase
@@ -107,12 +111,28 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
           if (status === "finished") router.push("/");
         }
       )
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState<{ player_id: string }>();
+        setOnlinePlayerIds(
+          new Set(Object.values(state).flatMap((arr) => arr.map((p) => p.player_id)))
+        );
+      })
       .subscribe();
+
+    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [initialLobby.id, initialLobby.code]);
+
+  // Track our own presence whenever we have a player ID (including after joining)
+  useEffect(() => {
+    if (myPlayerId && channelRef.current) {
+      channelRef.current.track({ player_id: myPlayerId });
+    }
+  }, [myPlayerId]);
 
   async function doJoin() {
     startTransition(async () => {
@@ -221,13 +241,12 @@ export function LobbyRoom({ lobby: initialLobby, currentUserId }: Props) {
                     <span
                       className="text-xs"
                       style={{
-                        color:
-                          p.connection_status === "connected"
-                            ? "var(--pc-green)"
-                            : "var(--pc-muted)",
+                        color: onlinePlayerIds.has(p.id)
+                          ? "var(--pc-green)"
+                          : "var(--pc-muted)",
                       }}
                     >
-                      {p.connection_status === "connected" ? "● online" : "○ away"}
+                      {onlinePlayerIds.has(p.id) ? "● online" : "○ away"}
                     </span>
                     {isHost && p.user_id !== initialLobby.host_user_id && (
                       <button
