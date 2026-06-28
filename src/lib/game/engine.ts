@@ -196,6 +196,7 @@ export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
       content: "Game over! Final scores above.",
       metadata: {},
     });
+    await recordGameOverStats(lobbyId, mode);
     return;
   }
 
@@ -433,6 +434,20 @@ export async function submitGuess(
     term: guessedTerm,
     correct,
   });
+
+  if (correct) {
+    const { data: guesserRow } = await supabase
+      .from("lobby_players")
+      .select("user_id")
+      .eq("id", playerIdInLobby)
+      .single();
+    if (guesserRow?.user_id) {
+      await supabase.rpc("increment_stat", {
+        p_user_id: guesserRow.user_id,
+        p_terms_guessed: 1,
+      });
+    }
+  }
 
   const { data: lobby } = await supabase
     .from("lobbies")
@@ -748,6 +763,56 @@ export async function endTurn(
 }
 
 // ── Helpers ────────────────────────────────────────────────
+
+async function recordGameOverStats(lobbyId: string, mode: string) {
+  const supabase = await createClient();
+
+  const { data: players } = await supabase
+    .from("lobby_players")
+    .select("user_id, score, team_id")
+    .eq("lobby_id", lobbyId)
+    .not("user_id", "is", null);
+
+  if (!players?.length) return;
+
+  let winnerUserIds = new Set<string>();
+
+  if (mode === "solo") {
+    const maxScore = Math.max(...players.map((p) => p.score));
+    winnerUserIds = new Set(
+      players.filter((p) => p.score === maxScore && p.user_id).map((p) => p.user_id!)
+    );
+  } else if (mode === "teams") {
+    const { data: teams } = await supabase
+      .from("lobby_teams")
+      .select("id, score")
+      .eq("lobby_id", lobbyId);
+    if (teams?.length) {
+      const maxTeamScore = Math.max(...teams.map((t) => t.score));
+      const winningTeamIds = new Set(
+        teams.filter((t) => t.score === maxTeamScore).map((t) => t.id)
+      );
+      winnerUserIds = new Set(
+        players
+          .filter((p) => p.team_id && winningTeamIds.has(p.team_id) && p.user_id)
+          .map((p) => p.user_id!)
+      );
+    }
+  }
+  // classroom_streamer has no winner — everyone gets games_played only
+
+  await Promise.all(
+    players
+      .filter((p) => p.user_id)
+      .map((p) =>
+        supabase.rpc("increment_stat", {
+          p_user_id: p.user_id!,
+          p_games_played: 1,
+          p_games_won: winnerUserIds.has(p.user_id!) ? 1 : 0,
+        })
+      )
+  );
+}
 
 async function pickTerm(
   lobbyId: string,

@@ -5,15 +5,39 @@ import { useRouter } from "next/navigation";
 import { updateDisplayName, deleteAccount, exportMyData, type ProfileError } from "./actions";
 import { AvatarSelector } from "./AvatarSelector";
 
+interface Stats {
+  gamesPlayed: number;
+  gamesWon: number;
+  termsGuessed: number;
+}
+
 interface Props {
   displayName: string;
   email: string | null;
   spriteUrl: string | null;
   currentAvatar: string | null;
   createdAt: string;
+  stats: Stats;
 }
 
-export function ProfileClient({ displayName, email, spriteUrl, currentAvatar, createdAt }: Props) {
+function StatBox({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div style={{
+      border: "2px solid var(--pc-ink)",
+      borderRadius: 8,
+      padding: "10px 14px",
+      background: "var(--pc-input-bg)",
+      textAlign: "center",
+    }}>
+      <div className="font-bold text-xl" style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
+        {value}
+      </div>
+      <div className="text-xs mt-1" style={{ color: "var(--pc-muted)" }}>{label}</div>
+    </div>
+  );
+}
+
+export function ProfileClient({ displayName, email, spriteUrl, currentAvatar, createdAt, stats }: Props) {
   const [nameError, nameAction, namePending] = useActionState<ProfileError | undefined, FormData>(
     updateDisplayName,
     undefined
@@ -86,6 +110,22 @@ export function ProfileClient({ displayName, email, spriteUrl, currentAvatar, cr
             {email && <div className="text-sm" style={{ color: "var(--pc-muted)" }}>{email}</div>}
             <div className="text-xs mt-1" style={{ color: "var(--pc-muted)" }}>Joined {joined}</div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Stats ── */}
+      <div className="pc-card">
+        <h2 className="pc-h2">Your stats</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <StatBox label="Games played" value={stats.gamesPlayed} />
+          <StatBox label="Games won" value={stats.gamesWon} />
+          <StatBox label="Terms guessed" value={stats.termsGuessed} />
+          <StatBox
+            label="Win rate"
+            value={stats.gamesPlayed > 0
+              ? `${Math.round((stats.gamesWon / stats.gamesPlayed) * 100)}%`
+              : "—"}
+          />
         </div>
       </div>
 

@@ -283,6 +283,15 @@ export type Database = {
         Args: { p_team_id: string; p_amount: number };
         Returns: void;
       };
+      increment_stat: {
+        Args: {
+          p_user_id: string;
+          p_games_played?: number;
+          p_games_won?: number;
+          p_terms_guessed?: number;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       [_ in never]: never;
