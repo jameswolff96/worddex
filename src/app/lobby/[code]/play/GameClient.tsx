@@ -251,8 +251,12 @@ export function GameClient({
     };
   }, [gs?.phase, gs?.current_turn_player_id, myPlayerId, lobby.id]);
 
-  // ── Word analysis for live counter ──
-  const tokens = clueInput.trim().split(/\s+/).filter(Boolean);
+  // ── Word analysis for live counter (mirrors server-side tokenize) ──
+  const tokens = clueInput
+    .trim()
+    .split(/[\s/\-.,:;!?()\[\]{}"]+/)
+    .map((tok) => tok.replace(/^[^a-zA-Z0-9À-ɏ']+|[^a-zA-Z0-9À-ɏ']+$/g, ""))
+    .filter(Boolean);
   const newTokens = tokens.filter((t) => !usedWords.has(t.toLowerCase()));
   const freeTokens = tokens.filter((t) => usedWords.has(t.toLowerCase()));
   const inputCost = newTokens.length;
@@ -376,8 +380,17 @@ export function GameClient({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
 
+  // Clear guess state when becoming the clue master
+  useEffect(() => {
+    if (isClueMaster) {
+      setGuessInput("");
+      setShowSuggestions(false);
+      setSelectedIdx(-1);
+    }
+  }, [isClueMaster]);
+
   const suggestions = useMemo(() => {
-    if (!guessInput.trim()) return [];
+    if (guessInput.trim().length < 2) return [];
     const q = guessInput.toLowerCase();
     return wordBank.filter((t) => t.term.toLowerCase().includes(q)).slice(0, 8);
   }, [guessInput, wordBank]);
@@ -585,6 +598,8 @@ export function GameClient({
                   cursor:
                     slot.kind === "filled" && isClueMaster ? "pointer" : "default",
                   fontSize: "0.78rem",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
                 }}
                 onClick={() => isClueMaster && handleClickSlot(slot)}
                 title={
@@ -630,15 +645,28 @@ export function GameClient({
                     style={{ imageRendering: "pixelated", flexShrink: 0 }}
                   />
                 )}
-                <div
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: 900,
-                    fontFamily: "'Trebuchet MS',Verdana,sans-serif",
-                    color: "var(--pc-red)",
-                  }}
-                >
-                  {currentTerm.term}
+                <div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: 900,
+                      fontFamily: "'Trebuchet MS',Verdana,sans-serif",
+                      color: "var(--pc-red)",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {currentTerm.term}
+                  </div>
+                  {currentTerm.category.startsWith("Pokémon") && (
+                    <a
+                      href={`https://bulbapedia.bulbagarden.net/wiki/${encodeURIComponent(currentTerm.term.replace(/ /g, "_"))}_(Pokémon)`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: "0.72rem", color: "var(--pc-blue)" }}
+                    >
+                      Bulbapedia ↗
+                    </a>
+                  )}
                 </div>
               </div>
               <div
@@ -864,7 +892,7 @@ export function GameClient({
                             style={{ imageRendering: "pixelated", flexShrink: 0 }}
                           />
                         )}
-                        <span style={{ fontWeight: 700 }}>{t.term}</span>
+                        <span style={{ fontWeight: 700, wordBreak: "break-word" }}>{t.term}</span>
                       </span>
                       <span style={{ fontSize: "0.72rem", color: "var(--pc-muted)" }}>{t.category}</span>
                     </button>
@@ -898,10 +926,7 @@ export function GameClient({
                       }
                     }
                     if (e.key === "Enter") {
-                      const term =
-                        selectedIdx >= 0
-                          ? suggestions[selectedIdx]?.term
-                          : guessInput.trim();
+                      const term = selectedIdx >= 0 ? suggestions[selectedIdx]?.term : undefined;
                       if (term) {
                         handleGuess(term);
                         setGuessInput("");
@@ -914,17 +939,14 @@ export function GameClient({
                     if (guessInput.trim()) setShowSuggestions(true);
                   }}
                   onBlur={() => setShowSuggestions(false)}
-                  placeholder="Type your guess…"
+                  placeholder={!currentTerm?.current_clue_message_id ? "Waiting for first clue…" : "Type to search…"}
                   className="pc-input"
                   style={{ flex: 1, marginBottom: 0 }}
-                  disabled={isPending || !currentTerm?.current_clue_message_id}
+                  disabled={isPending}
                 />
                 <button
                   onClick={() => {
-                    const term =
-                      selectedIdx >= 0
-                        ? suggestions[selectedIdx]?.term
-                        : guessInput.trim();
+                    const term = selectedIdx >= 0 ? suggestions[selectedIdx]?.term : undefined;
                     if (term) {
                       handleGuess(term);
                       setGuessInput("");
@@ -934,7 +956,8 @@ export function GameClient({
                   }}
                   disabled={
                     isPending ||
-                    !guessInput.trim() ||
+                    selectedIdx < 0 ||
+                    !suggestions[selectedIdx] ||
                     !currentTerm?.current_clue_message_id
                   }
                   className="pc-btn pc-btn-green"

@@ -29,6 +29,16 @@ export function longestCommonSubstring(a: string, b: string): number {
   return max;
 }
 
+function tokenize(text: string): string[] {
+  // Split on whitespace and punctuation that acts as a word boundary (/, -, ., etc.)
+  // Apostrophes are kept so contractions stay whole (it's, don't).
+  return text
+    .trim()
+    .split(/[\s/\-.,:;!?()\[\]{}"]+/)
+    .map((tok) => tok.replace(/^[^\wÀ-ɏ']+|[^\wÀ-ɏ']+$/g, ""))
+    .filter(Boolean);
+}
+
 function normalize(s: string): string {
   return s.toLowerCase().replace(/s$/, ""); // strip trailing 's'
 }
@@ -59,7 +69,7 @@ export function checkClueToken(token: string, answer: string): ClueCheckResult {
 }
 
 export function checkClue(clueText: string, answer: string): ClueCheckResult {
-  const tokens = clueText.trim().split(/\s+/).filter(Boolean);
+  const tokens = tokenize(clueText);
   for (const token of tokens) {
     const result = checkClueToken(token, answer);
     if (result.blocked) return result;
@@ -68,18 +78,19 @@ export function checkClue(clueText: string, answer: string): ClueCheckResult {
 }
 
 export function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
+  return tokenize(text).length;
 }
 
 /**
  * Given a set of already-used word tokens and a new clue message,
  * returns how many new words it costs and which tokens are new vs. free.
+ * Punctuation attached to word edges is stripped before comparison/storage.
  */
 export function analyzeClueMessage(
   text: string,
   usedWords: Set<string>
 ): { newWords: string[]; freeWords: string[]; cost: number } {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  const tokens = tokenize(text);
   const newWords: string[] = [];
   const freeWords: string[] = [];
 

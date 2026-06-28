@@ -438,6 +438,15 @@ export async function submitGuess(
 
   if (existingGuess) return { error: "You have already guessed for this clue" };
 
+  const { data: alreadyCorrect } = await supabase
+    .from("guess_log")
+    .select("id")
+    .eq("clue_message_id", clueMessageId)
+    .eq("correct", true)
+    .maybeSingle();
+
+  if (alreadyCorrect) return { error: "Someone already guessed this correctly!" };
+
   const correct =
     guessedTerm.trim().toLowerCase() === currentTerm.term.toLowerCase();
 
@@ -613,6 +622,7 @@ export async function forcedSkip(
 
   if (!gs) return { error: "Game state not found" };
   const gameState = gs as unknown as GameStateRow;
+  const currentTerm = gameState.current_term as unknown as CurrentTerm | null;
 
   await supabase.rpc("increment_player_score", {
     p_player_id: clueMasterPlayerIdInLobby,
@@ -622,7 +632,9 @@ export async function forcedSkip(
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
-    content: "Out of budget — term skipped. -1 point.",
+    content: currentTerm
+      ? `Out of budget — ${currentTerm.term} skipped. -1 point.`
+      : "Out of budget — term skipped. -1 point.",
   });
 
   await advanceToNextTerm(lobbyId, gameState);
@@ -641,11 +653,12 @@ export async function skipTerm(lobbyId: string): Promise<GameError | void> {
 
   if (!gs) return { error: "Game state not found" };
   const gameState = gs as unknown as GameStateRow;
+  const currentTerm = gameState.current_term as unknown as CurrentTerm | null;
 
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
-    content: "Term skipped.",
+    content: currentTerm ? `Term skipped: ${currentTerm.term}.` : "Term skipped.",
   });
 
   await advanceToNextTerm(lobbyId, gameState);
@@ -677,7 +690,7 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCo
       .from("game_state")
       .update({ terms_completed_this_turn: newCompleted })
       .eq("lobby_id", lobbyId);
-    await endTurn(lobbyId, gameState);
+    await endTurn(lobbyId);
     return;
   }
 
@@ -688,7 +701,7 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCo
   );
 
   if (!nextTerm) {
-    await endTurn(lobbyId, gameState);
+    await endTurn(lobbyId);
     return;
   }
 
@@ -758,7 +771,7 @@ async function advanceFfaRotationTerm(
       player_word_banks: playerWordBanks as unknown as import("@/lib/types/database").Json,
       player_term_counts: playerTermCounts as unknown as import("@/lib/types/database").Json,
     }).eq("lobby_id", lobbyId);
-    await endTurn(lobbyId, gameState);
+    await endTurn(lobbyId);
     return;
   }
 
@@ -779,7 +792,7 @@ async function advanceFfaRotationTerm(
 
   const term = await pickTerm(lobbyId, gameState.used_term_ids as number[], rules.categories);
   if (!term) {
-    await endTurn(lobbyId, gameState);
+    await endTurn(lobbyId);
     return;
   }
 
@@ -816,27 +829,19 @@ async function advanceFfaRotationTerm(
 
 // ── End turn ──────────────────────────────────────────────
 
-export async function endTurn(
-  lobbyId: string,
-  existingGs?: GameStateRow
-): Promise<GameError | void> {
+export async function endTurn(lobbyId: string): Promise<GameError | void> {
   const supabase = await createClient();
 
-  let gameState: GameStateRow;
-  if (existingGs) {
-    gameState = existingGs;
-  } else {
-    const { data: gs } = await supabase
-      .from("game_state")
-      .select("*")
-      .eq("lobby_id", lobbyId)
-      .single();
-    if (!gs) return { error: "Game state not found" };
-    gameState = gs as unknown as GameStateRow;
-  }
+  const { data: gs } = await supabase
+    .from("game_state")
+    .select("*")
+    .eq("lobby_id", lobbyId)
+    .single();
+  if (!gs) return { error: "Game state not found" };
+  const gameState = gs as unknown as GameStateRow;
 
-  const slots = gameState.slot_grid as unknown as SlotCell[];
-  const emptyCount = slots.filter((s) => s.kind === "empty").length;
+  // Guard against double-execution (race between countdown and rotation engine)
+  if (gameState.phase === "turn_end" || gameState.phase === "game_over") return;
 
   const { data: lobby } = await supabase
     .from("lobbies")
@@ -844,37 +849,62 @@ export async function endTurn(
     .eq("id", lobbyId)
     .single();
   const mode = lobby?.mode;
+  const rules = lobby?.rules as unknown as LobbyRules;
 
-  if (emptyCount > 0 && mode !== "classroom_streamer") {
-    if (mode === "solo") {
-      const turnPlayerId = gameState.current_turn_player_id;
-      if (turnPlayerId) {
-        await supabase.rpc("increment_player_score", {
-          p_player_id: turnPlayerId,
-          p_amount: emptyCount,
-        });
+  let bonusNote = "";
+
+  if (mode !== "classroom_streamer") {
+    if (mode === "solo" && rules.ffa_term_rotation) {
+      // Award each player bonus from their own saved bank
+      const playerWordBanks = (gameState.player_word_banks ?? {}) as Record<
+        string,
+        { slot_grid: SlotCell[]; used_words: string[] }
+      >;
+      const { data: lobbyPlayers } = await supabase
+        .from("lobby_players")
+        .select("id")
+        .eq("lobby_id", lobbyId);
+      let totalBonus = 0;
+      for (const lp of lobbyPlayers ?? []) {
+        const bank = playerWordBanks[lp.id];
+        if (!bank) continue;
+        const bankEmpty = bank.slot_grid.filter((s: SlotCell) => s.kind === "empty").length;
+        if (bankEmpty > 0) {
+          await supabase.rpc("increment_player_score", { p_player_id: lp.id, p_amount: bankEmpty });
+          totalBonus += bankEmpty;
+        }
+      }
+      if (totalBonus > 0) {
+        bonusNote = ` +${totalBonus} total bonus points for unused slots.`;
+      }
+    } else if (mode === "solo") {
+      const slots = gameState.slot_grid as unknown as SlotCell[];
+      const emptyCount = slots.filter((s) => s.kind === "empty").length;
+      if (emptyCount > 0) {
+        const turnPlayerId = gameState.current_turn_player_id;
+        if (turnPlayerId) {
+          await supabase.rpc("increment_player_score", { p_player_id: turnPlayerId, p_amount: emptyCount });
+        }
+        bonusNote = ` +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused slots.`;
       }
     } else {
-      const teamId = gameState.current_team_id;
-      if (teamId) {
-        await supabase.rpc("increment_team_score", {
-          p_team_id: teamId,
-          p_amount: emptyCount,
-        });
+      const slots = gameState.slot_grid as unknown as SlotCell[];
+      const emptyCount = slots.filter((s) => s.kind === "empty").length;
+      if (emptyCount > 0) {
+        const teamId = gameState.current_team_id;
+        if (teamId) {
+          await supabase.rpc("increment_team_score", { p_team_id: teamId, p_amount: emptyCount });
+        }
+        bonusNote = ` +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused slots.`;
       }
     }
   }
-
-  const bonusNote =
-    emptyCount > 0 && mode !== "classroom_streamer"
-      ? ` +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused slots.`
-      : "";
 
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
     content: `Turn complete!${bonusNote}`,
-    metadata: { empty_slots: emptyCount },
+    metadata: {},
   });
 
   await supabase
