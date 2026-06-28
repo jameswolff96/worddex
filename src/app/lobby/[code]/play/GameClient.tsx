@@ -132,6 +132,8 @@ export function GameClient({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [summaryCountdown, setSummaryCountdown] = useState<number | null>(null);
+  const summaryAdvanced = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const countdownTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -250,6 +252,35 @@ export function GameClient({
       countdownTimers.current = [];
     };
   }, [gs?.phase, gs?.current_turn_player_id, myPlayerId, lobby.id]);
+
+  // Turn summary countdown + host auto-advance
+  useEffect(() => {
+    if (gs?.phase !== "turn_summary") {
+      setSummaryCountdown(null);
+      summaryAdvanced.current = false;
+      return;
+    }
+
+    setSummaryCountdown(5);
+    const interval = setInterval(() => {
+      setSummaryCountdown((c) => (c !== null && c > 1 ? c - 1 : null));
+    }, 1000);
+
+    let autoTimer: ReturnType<typeof setTimeout> | null = null;
+    if (isHost) {
+      autoTimer = setTimeout(async () => {
+        if (!summaryAdvanced.current) {
+          summaryAdvanced.current = true;
+          await advanceTurn(lobby.id);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (autoTimer) clearTimeout(autoTimer);
+    };
+  }, [gs?.phase, isHost, lobby.id]);
 
   // ── Word analysis for live counter (mirrors server-side tokenize) ──
   const tokens = clueInput
@@ -458,6 +489,109 @@ export function GameClient({
           ) : (
             <div className="flex flex-col items-center gap-3">
               <p style={{ color: "var(--pc-muted)" }}>Waiting for the host to start the next turn…</p>
+              <button disabled={isPending} className="pc-btn pc-btn-ghost" onClick={handleAbandon}>
+                Leave game
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (gs.phase === "turn_summary") {
+    const recentChat = chat.slice(-8);
+    return (
+      <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
+        <Brandbar />
+        <div className="pc-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+            <h2 className="pc-h2" style={{ margin: 0 }}>Turn complete!</h2>
+            <span style={{ fontSize: "0.8rem", color: "var(--pc-muted)" }}>
+              Round {gs.current_round} / {rules.number_of_rounds}
+            </span>
+          </div>
+
+          <ul className="space-y-2 mb-4">
+            {[...scores].sort((a, b) => b.score - a.score).map((s, i) => {
+              const spriteUrl = "avatar" in s ? pokemonSpriteUrl(s.avatar as string | null) : null;
+              return (
+                <li
+                  key={s.id}
+                  className="flex justify-between items-center px-3 py-2 rounded-lg"
+                  style={{ border: "2px solid var(--pc-ink)", background: "var(--pc-input-bg)" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {spriteUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={spriteUrl} alt="" width={28} height={28} style={{ imageRendering: "pixelated" }} />
+                    )}
+                    <span className="font-bold">{i === 0 ? "🏆 " : ""}{s.name}</span>
+                  </div>
+                  <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--pc-blue)" }}>
+                    <AnimatedScore value={s.score} /> pts
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {recentChat.length > 0 && (
+            <div
+              style={{
+                borderRadius: 8,
+                border: "2px solid var(--pc-ink)",
+                padding: "8px 12px",
+                marginBottom: 16,
+                background: "var(--pc-input-bg)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+              }}
+            >
+              {recentChat.map((msg) => (
+                <div
+                  key={msg.id}
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "var(--pc-muted)",
+                    textAlign: "center",
+                  }}
+                >
+                  {msg.content}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && <p className="text-sm font-bold mb-3" style={{ color: "var(--pc-red)" }}>{error}</p>}
+
+          {isHost ? (
+            <div className="flex gap-3 justify-center flex-wrap items-center">
+              <button
+                disabled={isPending}
+                className="pc-btn pc-btn-red"
+                onClick={() => {
+                  if (summaryAdvanced.current) return;
+                  summaryAdvanced.current = true;
+                  setError(null);
+                  startTransition(async () => {
+                    const result = await advanceTurn(lobby.id);
+                    if (result?.error) setError(result.error);
+                  });
+                }}
+              >
+                {isPending ? "Starting…" : `Next turn →${summaryCountdown !== null ? ` (${summaryCountdown}s)` : ""}`}
+              </button>
+              <button disabled={isPending} className="pc-btn pc-btn-ghost" onClick={handleEndGame}>
+                End game
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <p style={{ color: "var(--pc-muted)", fontSize: "0.9rem" }}>
+                {summaryCountdown !== null ? `Advancing in ${summaryCountdown}s…` : "Advancing…"}
+              </p>
               <button disabled={isPending} className="pc-btn pc-btn-ghost" onClick={handleAbandon}>
                 Leave game
               </button>
@@ -976,6 +1110,32 @@ export function GameClient({
       </div>
     </div>
   );
+}
+
+// ── Animated score counter ────────────────────────────────
+
+function AnimatedScore({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === value) return;
+    const diff = value - from;
+    const duration = Math.min(400 + Math.abs(diff) * 30, 1000);
+    const t0 = performance.now();
+
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(from + diff * eased));
+      if (p < 1) requestAnimationFrame(tick);
+      else fromRef.current = value;
+    };
+    requestAnimationFrame(tick);
+  }, [value]);
+
+  return <>{display}</>;
 }
 
 // ── Chat line renderer ─────────────────────────────────────

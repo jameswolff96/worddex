@@ -845,7 +845,11 @@ export async function endTurn(lobbyId: string): Promise<GameError | void> {
   const gameState = gs as unknown as GameStateRow;
 
   // Guard against double-execution (race between countdown and rotation engine)
-  if (gameState.phase === "turn_end" || gameState.phase === "game_over") return;
+  if (
+    gameState.phase === "turn_summary" ||
+    gameState.phase === "turn_end" ||
+    gameState.phase === "game_over"
+  ) return;
 
   const { data: lobby } = await supabase
     .from("lobbies")
@@ -855,31 +859,34 @@ export async function endTurn(lobbyId: string): Promise<GameError | void> {
   const mode = lobby?.mode;
   const rules = lobby?.rules as unknown as LobbyRules;
 
-  let bonusNote = "";
+  // Set turn_summary FIRST so clients show the summary screen immediately.
+  // Bonus RPCs fire afterward — each one triggers a Realtime score update
+  // that the AnimatedScore component on the client picks up live.
+  await supabase.from("game_state").update({ phase: "turn_summary" }).eq("lobby_id", lobbyId);
 
   if (mode !== "classroom_streamer") {
     if (mode === "solo" && rules.ffa_term_rotation) {
-      // Award each player bonus from their own saved bank
       const playerWordBanks = (gameState.player_word_banks ?? {}) as Record<
         string,
         { slot_grid: SlotCell[]; used_words: string[] }
       >;
+      type LPRow = { id: string; guest_name: string | null; users?: { display_name: string } | null };
       const { data: lobbyPlayers } = await supabase
         .from("lobby_players")
-        .select("id")
+        .select("id, guest_name, users(display_name)")
         .eq("lobby_id", lobbyId);
-      let totalBonus = 0;
-      for (const lp of lobbyPlayers ?? []) {
+
+      for (const lp of (lobbyPlayers ?? []) as unknown as LPRow[]) {
         const bank = playerWordBanks[lp.id];
         if (!bank) continue;
         const bankEmpty = bank.slot_grid.filter((s: SlotCell) => s.kind === "empty").length;
-        if (bankEmpty > 0) {
-          await supabase.rpc("increment_player_score", { p_player_id: lp.id, p_amount: bankEmpty });
-          totalBonus += bankEmpty;
-        }
-      }
-      if (totalBonus > 0) {
-        bonusNote = ` +${totalBonus} total bonus points for unused slots.`;
+        if (bankEmpty <= 0) continue;
+        const name = lp.users?.display_name ?? lp.guest_name ?? "A player";
+        await supabase.rpc("increment_player_score", { p_player_id: lp.id, p_amount: bankEmpty });
+        await supabase.from("chat_messages").insert({
+          lobby_id: lobbyId, kind: "system", metadata: {},
+          content: `${name} earns +${bankEmpty} bonus point${bankEmpty !== 1 ? "s" : ""} for unused budget!`,
+        });
       }
     } else if (mode === "solo") {
       const slots = gameState.slot_grid as unknown as SlotCell[];
@@ -887,9 +894,21 @@ export async function endTurn(lobbyId: string): Promise<GameError | void> {
       if (emptyCount > 0) {
         const turnPlayerId = gameState.current_turn_player_id;
         if (turnPlayerId) {
+          type LPRow = { guest_name: string | null; users?: { display_name: string } | null };
+          const { data: lpRow } = await supabase
+            .from("lobby_players")
+            .select("guest_name, users(display_name)")
+            .eq("id", turnPlayerId)
+            .single();
+          const name = (lpRow as unknown as LPRow)?.users?.display_name
+            ?? (lpRow as unknown as LPRow)?.guest_name
+            ?? "The Clue Master";
           await supabase.rpc("increment_player_score", { p_player_id: turnPlayerId, p_amount: emptyCount });
+          await supabase.from("chat_messages").insert({
+            lobby_id: lobbyId, kind: "system", metadata: {},
+            content: `${name} earns +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused budget!`,
+          });
         }
-        bonusNote = ` +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused slots.`;
       }
     } else {
       const slots = gameState.slot_grid as unknown as SlotCell[];
@@ -897,9 +916,14 @@ export async function endTurn(lobbyId: string): Promise<GameError | void> {
       if (emptyCount > 0) {
         const teamId = gameState.current_team_id;
         if (teamId) {
+          const { data: team } = await supabase.from("lobby_teams").select("name").eq("id", teamId).single();
+          const teamName = team?.name ?? "The active team";
           await supabase.rpc("increment_team_score", { p_team_id: teamId, p_amount: emptyCount });
+          await supabase.from("chat_messages").insert({
+            lobby_id: lobbyId, kind: "system", metadata: {},
+            content: `${teamName} earns +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused budget!`,
+          });
         }
-        bonusNote = ` +${emptyCount} bonus point${emptyCount !== 1 ? "s" : ""} for unused slots.`;
       }
     }
   }
@@ -907,14 +931,9 @@ export async function endTurn(lobbyId: string): Promise<GameError | void> {
   await supabase.from("chat_messages").insert({
     lobby_id: lobbyId,
     kind: "system",
-    content: `Turn complete!${bonusNote}`,
+    content: "Turn complete!",
     metadata: {},
   });
-
-  await supabase
-    .from("game_state")
-    .update({ phase: "turn_end" })
-    .eq("lobby_id", lobbyId);
 }
 
 // ── Helpers ────────────────────────────────────────────────

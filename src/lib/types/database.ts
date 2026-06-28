@@ -327,6 +327,7 @@ export type GamePhase =
   | "turn_start"
   | "clueing"
   | "correct_guess"
+  | "turn_summary"
   | "turn_end"
   | "round_end"
   | "game_over";
