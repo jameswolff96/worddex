@@ -165,6 +165,8 @@ export type Database = {
           terms_completed_this_turn: number;
           phase: string;
           updated_at: string;
+          player_word_banks: Json;
+          player_term_counts: Json;
         };
         Insert: {
           lobby_id: string;
@@ -178,6 +180,8 @@ export type Database = {
           terms_completed_this_turn?: number;
           phase?: string;
           updated_at?: string;
+          player_word_banks?: Json;
+          player_term_counts?: Json;
         };
         Update: {
           current_round?: number;
@@ -190,6 +194,8 @@ export type Database = {
           terms_completed_this_turn?: number;
           phase?: string;
           updated_at?: string;
+          player_word_banks?: Json;
+          player_term_counts?: Json;
         };
         Relationships: [];
       };
@@ -313,6 +319,7 @@ export type LobbyRules = {
   is_18_plus_mode: boolean;
   clue_master_rotation: "static" | "round" | "term";
   classroom_scoring_mode: "first_correct" | "all_correct";
+  ffa_term_rotation: boolean;
 };
 
 export type GamePhase =
@@ -343,5 +350,6 @@ export type LobbyRow = Database["public"]["Tables"]["lobbies"]["Row"];
 export type LobbyTeamRow = Database["public"]["Tables"]["lobby_teams"]["Row"];
 export type LobbyPlayerRow = Database["public"]["Tables"]["lobby_players"]["Row"];
 export type GameStateRow = Database["public"]["Tables"]["game_state"]["Row"];
+export type StatsRow = Database["public"]["Tables"]["stats"]["Row"];
 export type ChatMessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
 export type WordBankRow = Database["public"]["Tables"]["word_bank"]["Row"];

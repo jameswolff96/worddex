@@ -73,6 +73,8 @@ interface GameState {
   used_words_this_turn: string[];
   terms_completed_this_turn: number;
   phase: GamePhase;
+  player_word_banks: Record<string, { slot_grid: SlotCell[]; used_words: string[] }>;
+  player_term_counts: Record<string, number>;
 }
 
 interface ChatMessage {

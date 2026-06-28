@@ -50,6 +50,7 @@ export async function createLobby(
       (formData.get(
         "classroom_scoring_mode"
       ) as LobbyRules["classroom_scoring_mode"]) ?? "first_correct",
+    ffa_term_rotation: formData.get("ffa_term_rotation") === "true",
   };
 
   const { data: lobbyCode, error: codeError } = await supabase.rpc(

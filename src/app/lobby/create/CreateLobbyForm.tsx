@@ -63,7 +63,7 @@ export function CreateLobbyForm({ isGuest, categories }: Props) {
       {/* Rules */}
       <div className="pc-card">
         <h2 className="pc-h2">3. Round settings</h2>
-        <RuleSettings isTeams={mode === "teams"} />
+        <RuleSettings isTeams={mode === "teams"} isSolo={mode === "solo"} />
       </div>
 
       {/* Visibility */}
@@ -230,7 +230,7 @@ function CategoryPill({ category, label }: { category: string; label: string }) 
   );
 }
 
-function RuleSettings({ isTeams }: { isTeams: boolean }) {
+function RuleSettings({ isTeams, isSolo }: { isTeams: boolean; isSolo: boolean }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -274,6 +274,18 @@ function RuleSettings({ isTeams }: { isTeams: boolean }) {
           </div>
         )}
       </div>
+
+      {isSolo && (
+        <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
+          <input type="checkbox" name="ffa_term_rotation" value="true" className="accent-[var(--pc-blue)]" />
+          <span>
+            Rotate terms between players
+            <span className="font-normal ml-1" style={{ color: "var(--pc-muted)" }}>
+              — each term passes to the next player; everyone keeps their own word bank through the round
+            </span>
+          </span>
+        </label>
+      )}
 
       <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
         <input type="checkbox" name="is_18_plus_mode" value="true" className="accent-[var(--pc-red)]" />

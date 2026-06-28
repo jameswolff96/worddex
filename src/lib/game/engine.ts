@@ -141,14 +141,21 @@ export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
       .order("join_order");
     if (!players?.length) return { error: "No players found" };
 
-    const currentIdx = players.findIndex((p) => p.id === gameState.current_turn_player_id);
-    const nextIdx = currentIdx + 1;
-    if (nextIdx >= players.length) {
+    if (rules.ffa_term_rotation) {
+      // Rotation mode: advanceTurn is only called at round end → always start new round from player 0
       nextRound++;
       isNewRound = true;
       nextPlayerId = players[0].id;
     } else {
-      nextPlayerId = players[nextIdx].id;
+      const currentIdx = players.findIndex((p) => p.id === gameState.current_turn_player_id);
+      const nextIdx = currentIdx + 1;
+      if (nextIdx >= players.length) {
+        nextRound++;
+        isNewRound = true;
+        nextPlayerId = players[0].id;
+      } else {
+        nextPlayerId = players[nextIdx].id;
+      }
     }
 
   } else if (mode === "teams") {
@@ -228,6 +235,13 @@ export async function advanceTurn(lobbyId: string): Promise<GameError | void> {
       used_term_ids: [...(gameState.used_term_ids as number[]), term.id],
       terms_completed_this_turn: 0,
       phase: "clueing",
+      // Reset per-player banks at the start of every new round in FFA rotation
+      ...(mode === "solo" && rules.ffa_term_rotation && isNewRound
+        ? {
+            player_word_banks: {} as unknown as import("@/lib/types/database").Json,
+            player_term_counts: {} as unknown as import("@/lib/types/database").Json,
+          }
+        : {}),
     })
     .eq("lobby_id", lobbyId);
 
@@ -465,6 +479,8 @@ export async function submitGuess(
 
   if (correct) {
     const mode = lobby?.mode;
+    const rules = lobby?.rules as unknown as LobbyRules;
+
     if (mode === "solo") {
       await supabase.rpc("increment_player_score", {
         p_player_id: playerIdInLobby,
@@ -484,8 +500,11 @@ export async function submitGuess(
       }
     }
 
-    const rules = lobby?.rules as unknown as LobbyRules;
-    if (mode === "classroom_streamer" && rules.classroom_scoring_mode === "first_correct") {
+    if (
+      (mode === "classroom_streamer" && rules.classroom_scoring_mode === "first_correct") ||
+      (mode === "solo" && rules.ffa_term_rotation)
+    ) {
+      // Auto-advance immediately — no countdown
       await advanceToNextTerm(lobbyId, gameState, true);
     } else {
       const completedThisTurn = ((gameState.terms_completed_this_turn as number) ?? 0) + 1;
@@ -639,10 +658,16 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCo
 
   const { data: lobby } = await supabase
     .from("lobbies")
-    .select("rules")
+    .select("rules, mode")
     .eq("id", lobbyId)
     .single();
   const rules = lobby?.rules as unknown as LobbyRules;
+  const mode = lobby?.mode as string;
+
+  // FFA rotation: each term goes to the next player, banks persist per-player
+  if (mode === "solo" && rules.ffa_term_rotation) {
+    return advanceFfaRotationTerm(lobbyId, gameState, rules, wasCorrect);
+  }
 
   const completedSoFar = (gameState.terms_completed_this_turn as number) ?? 0;
   const newCompleted = wasCorrect ? completedSoFar + 1 : completedSoFar;
@@ -690,6 +715,102 @@ async function advanceToNextTerm(lobbyId: string, gameState: GameStateRow, wasCo
     content: wasCorrect
       ? `✓ Term ${newCompleted}/${rules.terms_per_turn} complete! Next term…`
       : "Term skipped. Next term!",
+  });
+}
+
+async function advanceFfaRotationTerm(
+  lobbyId: string,
+  gameState: GameStateRow,
+  rules: LobbyRules,
+  wasCorrect: boolean
+) {
+  const supabase = await createClient();
+
+  const currentPlayerId = gameState.current_turn_player_id!;
+
+  const { data: players } = await supabase
+    .from("lobby_players")
+    .select("id, guest_name, users(display_name)")
+    .eq("lobby_id", lobbyId)
+    .order("join_order");
+  if (!players?.length) return;
+
+  type PlayerRow = { id: string; guest_name: string | null; users?: { display_name: string } | null };
+  const typedPlayers = players as unknown as PlayerRow[];
+
+  const playerWordBanks = (gameState.player_word_banks ?? {}) as Record<string, { slot_grid: SlotCell[]; used_words: string[] }>;
+  const playerTermCounts = (gameState.player_term_counts ?? {}) as Record<string, number>;
+
+  // Persist current player's bank and increment their term count
+  playerWordBanks[currentPlayerId] = {
+    slot_grid: gameState.slot_grid as unknown as SlotCell[],
+    used_words: gameState.used_words_this_turn as string[],
+  };
+  playerTermCounts[currentPlayerId] = (playerTermCounts[currentPlayerId] ?? 0) + 1;
+
+  // Check if every player has reached terms_per_turn
+  const roundOver = typedPlayers.every(
+    (p) => (playerTermCounts[p.id] ?? 0) >= rules.terms_per_turn
+  );
+
+  if (roundOver) {
+    await supabase.from("game_state").update({
+      player_word_banks: playerWordBanks as unknown as import("@/lib/types/database").Json,
+      player_term_counts: playerTermCounts as unknown as import("@/lib/types/database").Json,
+    }).eq("lobby_id", lobbyId);
+    await endTurn(lobbyId, gameState);
+    return;
+  }
+
+  // Find the next player who still has terms left
+  const currentIdx = typedPlayers.findIndex((p) => p.id === currentPlayerId);
+  let nextIdx = (currentIdx + 1) % typedPlayers.length;
+  while ((playerTermCounts[typedPlayers[nextIdx].id] ?? 0) >= rules.terms_per_turn) {
+    nextIdx = (nextIdx + 1) % typedPlayers.length;
+  }
+  const nextPlayer = typedPlayers[nextIdx];
+  const nextPlayerName = nextPlayer.users?.display_name ?? nextPlayer.guest_name ?? "Next player";
+
+  // Restore next player's bank (or a fresh one)
+  const nextBank = playerWordBanks[nextPlayer.id] ?? {
+    slot_grid: Array.from({ length: rules.word_budget }, () => ({ kind: "empty" as const })),
+    used_words: [] as string[],
+  };
+
+  const term = await pickTerm(lobbyId, gameState.used_term_ids as number[], rules.categories);
+  if (!term) {
+    await endTurn(lobbyId, gameState);
+    return;
+  }
+
+  const nextTerm: CurrentTerm = {
+    term: term.term,
+    category: term.category,
+    word_bank_id: term.id,
+    sprite_ref: term.sprite_ref,
+    current_clue_message_id: null,
+  };
+
+  const totalDone = Object.values(playerTermCounts).reduce((a, b) => a + b, 0);
+  const totalNeeded = typedPlayers.length * rules.terms_per_turn;
+
+  await supabase.from("game_state").update({
+    current_turn_player_id: nextPlayer.id,
+    current_term: nextTerm as unknown as import("@/lib/types/database").Json,
+    slot_grid: nextBank.slot_grid as unknown as import("@/lib/types/database").Json,
+    used_words_this_turn: nextBank.used_words,
+    used_term_ids: [...(gameState.used_term_ids as number[]), term.id],
+    player_word_banks: playerWordBanks as unknown as import("@/lib/types/database").Json,
+    player_term_counts: playerTermCounts as unknown as import("@/lib/types/database").Json,
+  }).eq("lobby_id", lobbyId);
+
+  await supabase.from("chat_messages").insert({
+    lobby_id: lobbyId,
+    kind: "system",
+    content: wasCorrect
+      ? `✓ Correct! ${nextPlayerName} is up… (${totalDone}/${totalNeeded})`
+      : `Skipped. ${nextPlayerName} is up… (${totalDone}/${totalNeeded})`,
+    metadata: {},
   });
 }
 
