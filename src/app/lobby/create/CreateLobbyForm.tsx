@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useCallback } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createClient } from "@/lib/supabase/client";
 import { createLobby } from "../actions";
@@ -142,17 +142,80 @@ function ModeSelector({
   );
 }
 
+const GEN_ORDER = [
+  "Pokémon Gen 1", "Pokémon Gen 2", "Pokémon Gen 3",
+  "Pokémon Gen 4", "Pokémon Gen 5", "Pokémon Gen 6",
+  "Pokémon Gen 7", "Pokémon Gen 8", "Pokémon Gen 9",
+];
+
 function CategoryToggles({ categories }: { categories: string[] }) {
+  const genCats = GEN_ORDER.filter((g) => categories.includes(g));
+  const otherCats = categories.filter((c) => !GEN_ORDER.includes(c));
+
+  const [selectedGens, setSelectedGens] = useState<Set<string>>(new Set(genCats));
+
+  const allSelected = genCats.length > 0 && genCats.every((g) => selectedGens.has(g));
+  const noneSelected = genCats.every((g) => !selectedGens.has(g));
+
+  const toggleAllGens = useCallback(() => {
+    setSelectedGens(allSelected ? new Set() : new Set(genCats));
+  }, [allSelected, genCats]);
+
+  const toggleGen = useCallback((gen: string) => {
+    setSelectedGens((prev) => {
+      const next = new Set(prev);
+      if (next.has(gen)) next.delete(gen); else next.add(gen);
+      return next;
+    });
+  }, []);
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {categories.map((cat) => (
-        <CategoryPill key={cat} category={cat} />
-      ))}
+    <div className="space-y-4">
+      {otherCats.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {otherCats.map((cat) => (
+            <CategoryPill key={cat} category={cat} label={cat} />
+          ))}
+        </div>
+      )}
+
+      {genCats.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-bold" style={{ fontFamily: "'Trebuchet MS', Verdana, sans-serif" }}>
+              Pokémon by generation
+            </span>
+            <button
+              type="button"
+              onClick={toggleAllGens}
+              className="pc-btn pc-btn-ghost"
+              style={{ padding: "2px 10px", fontSize: "0.72rem" }}
+            >
+              {noneSelected ? "Select all" : allSelected ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {genCats.map((gen) => (
+              <label key={gen} className="cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="categories"
+                  value={gen}
+                  checked={selectedGens.has(gen)}
+                  onChange={() => toggleGen(gen)}
+                  className="sr-only"
+                />
+                <span className="pc-pill">{gen.replace("Pokémon ", "")}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function CategoryPill({ category }: { category: string }) {
+function CategoryPill({ category, label }: { category: string; label: string }) {
   return (
     <label className="cursor-pointer">
       <input
@@ -162,7 +225,7 @@ function CategoryPill({ category }: { category: string }) {
         defaultChecked
         className="sr-only"
       />
-      <span className="pc-pill">{category}</span>
+      <span className="pc-pill">{label}</span>
     </label>
   );
 }
